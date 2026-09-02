@@ -1,25 +1,95 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import React from 'react';
 import { render } from 'ink-testing-library';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SnitchConfig } from '../src/config.js';
+import { createDefaultRegistry } from '../src/tools/registry.js';
 import { App } from '../src/ui/App.js';
+import { FakeProvider, textTurn, toolTurn } from './helpers/fakeProvider.js';
 
-const tick = () => new Promise((resolve) => setTimeout(resolve, 10));
+const config: SnitchConfig = {
+  apiKey: 'test-key',
+  model: 'fake/model',
+  baseUrl: 'http://localhost',
+  tokenBudget: 200_000,
+  maxIterations: 24,
+};
+
+let dir: string;
+
+beforeEach(() => {
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'snitch-app-'));
+});
+
+afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+function renderApp(provider: FakeProvider) {
+  return render(<App config={config} provider={provider} registry={createDefaultRegistry()} cwd={dir} />);
+}
+
+const frame = (r: { lastFrame: () => string | undefined }) => r.lastFrame() ?? '';
+
+/** Ink needs a beat between stdin writes to parse them as separate keypresses. */
+async function type(r: { stdin: { write: (s: string) => void } }, ...inputs: string[]) {
+  for (const input of inputs) {
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    r.stdin.write(input);
+  }
+}
 
 describe('App', () => {
-  it('renders the title and exit hint', () => {
-    const { lastFrame, unmount } = render(<App />);
-    expect(lastFrame()).toContain('Snitch');
-    expect(lastFrame()).toContain('press q or ctrl+c to exit');
-    unmount();
+  it('renders the input prompt and status bar', () => {
+    const r = renderApp(new FakeProvider([]));
+    expect(frame(r)).toContain('describe a task…');
+    expect(frame(r)).toContain('· ready');
+    expect(frame(r)).toContain('fake/model');
+    r.unmount();
   });
 
-  it('echoes the last key pressed', async () => {
-    const { lastFrame, stdin, unmount } = render(<App />);
-    expect(lastFrame()).toContain('(none yet)');
-    await tick();
-    stdin.write('x');
-    await tick();
-    expect(lastFrame()).toContain('last key: x');
-    unmount();
+  it('runs a text-only task and shows the reply in the transcript', async () => {
+    const r = renderApp(new FakeProvider([textTurn('All done!')]));
+    await type(r, 'say something', '\r');
+
+    await vi.waitFor(() => expect(frame(r)).toContain('All done!'));
+    expect(frame(r)).toContain('❯ say something');
+    await vi.waitFor(() => expect(frame(r)).toContain('· ready'));
+    r.unmount();
+  });
+
+  it('shows an approval card and records a denial without executing', async () => {
+    const provider = new FakeProvider([
+      toolTurn([{ id: 'call_1', name: 'write_file', args: '{"path":"out.txt","content":"hi"}' }]),
+      textTurn('okay, skipped it'),
+    ]);
+    const r = renderApp(provider);
+    await type(r, 'write a file', '\r');
+
+    await vi.waitFor(() => expect(frame(r)).toContain('approve? [y]es / [n]o'));
+    expect(frame(r)).toContain('⚙ write_file');
+    await type(r, 'n');
+
+    await vi.waitFor(() => expect(frame(r)).toContain('okay, skipped it'));
+    expect(frame(r)).toContain('✗ denied');
+    expect(fs.existsSync(path.join(dir, 'out.txt'))).toBe(false);
+    r.unmount();
+  });
+
+  it('executes an approved tool call and shows its result', async () => {
+    const provider = new FakeProvider([
+      toolTurn([{ id: 'call_1', name: 'write_file', args: '{"path":"out.txt","content":"hi"}' }]),
+      textTurn('wrote it'),
+    ]);
+    const r = renderApp(provider);
+    await type(r, 'write a file', '\r');
+
+    await vi.waitFor(() => expect(frame(r)).toContain('approve? [y]es / [n]o'));
+    await type(r, 'y');
+
+    await vi.waitFor(() => expect(frame(r)).toContain('wrote it'));
+    expect(frame(r)).toContain('✓');
+    expect(fs.readFileSync(path.join(dir, 'out.txt'), 'utf8')).toBe('hi');
+    r.unmount();
   });
 });

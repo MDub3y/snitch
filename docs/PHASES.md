@@ -30,7 +30,7 @@
     - Denial handled gracefully (fed back to model, conversation continues)
     - FakeProvider tests: max-iterations guard (default 24), tool-error-as-result, cancellation
 
-- [ ] **Phase 5 — Ink TUI + approvals**
+- [x] **Phase 5 — Ink TUI + approvals** (completed 2026-09-02; render + approval mechanics verified via ink-testing-library, live interactive session pending API key)
   - Prerequisites: Phase 4 (consumes the loop's `AgentEvent` stream) + Phase 1 UI shell
   - Acceptance:
     - Full interactive session; approval cards block until answered

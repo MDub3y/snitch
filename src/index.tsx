@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import React from 'react';
 import { render } from 'ink';
-import { loadConfig } from './config.js';
+import { loadConfig, requireApiKey } from './config.js';
 import { runHeadless } from './headless.js';
 import { App } from './ui/App.js';
 import { SnitchError } from './util/errors.js';
@@ -44,7 +44,8 @@ try {
         'Interactive mode requires a TTY (run inside a terminal such as Windows Terminal), or use --headless "<prompt>".',
       );
     }
-    const { waitUntilExit } = render(<App />);
+    requireApiKey(config); // fail fast with a clear message before Ink takes over the screen
+    const { waitUntilExit } = render(<App config={config} />);
     await waitUntilExit();
   }
 } catch (error) {
