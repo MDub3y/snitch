@@ -17,7 +17,7 @@
     - SSE parser unit tests: split-chunk and tool-call-delta fixtures
     - 429 Retry-After backoff tested; bad/missing key produces a clear error message
 
-- [ ] **Phase 3 — Tool registry + 7 tools**
+- [x] **Phase 3 — Tool registry + 7 tools** (completed 2026-09-02)
   - Prerequisites: Phase 1 only (independent of Phase 2 — may proceed in parallel with it)
   - Acceptance:
     - Per-tool vitest in temp dirs: edit ambiguity, run_command timeout tree-kill, binary-file skip
