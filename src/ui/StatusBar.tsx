@@ -23,7 +23,7 @@ export function StatusBar({ model, mode, totals, status }: Props) {
   return (
     <Box justifyContent="space-between">
       <Text dimColor>
-        {mode === 'working' ? `${FRAMES[frame]} working` : mode === 'approval' ? '⏸ awaiting approval' : '· ready'}
+        {mode === 'working' ? `${FRAMES[frame]} working` : mode === 'approval' ? 'awaiting approval' : '· ready'}
         {status ? `  ${status}` : ''}
         {'  '}
         <Text dimColor>esc to cancel</Text>

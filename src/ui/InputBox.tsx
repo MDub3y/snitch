@@ -33,7 +33,7 @@ export function InputBox({ active, onSubmit }: Props) {
   return (
     <Box>
       <Text color="green" bold>
-        {'❯ '}
+        {'> '}
       </Text>
       <Text>{value}</Text>
       {active ? <Text inverse> </Text> : null}

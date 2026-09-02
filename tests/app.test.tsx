@@ -54,7 +54,7 @@ describe('App', () => {
     await type(r, 'say something', '\r');
 
     await vi.waitFor(() => expect(frame(r)).toContain('All done!'));
-    expect(frame(r)).toContain('❯ say something');
+    expect(frame(r)).toContain('> say something');
     await vi.waitFor(() => expect(frame(r)).toContain('· ready'));
     r.unmount();
   });
@@ -68,11 +68,11 @@ describe('App', () => {
     await type(r, 'write a file', '\r');
 
     await vi.waitFor(() => expect(frame(r)).toContain('approve? [y]es / [n]o'));
-    expect(frame(r)).toContain('⚙ write_file');
+    expect(frame(r)).toContain('[tool] write_file');
     await type(r, 'n');
 
     await vi.waitFor(() => expect(frame(r)).toContain('okay, skipped it'));
-    expect(frame(r)).toContain('✗ denied');
+    expect(frame(r)).toContain('write_file denied');
     expect(fs.existsSync(path.join(dir, 'out.txt'))).toBe(false);
     r.unmount();
   });
@@ -89,7 +89,7 @@ describe('App', () => {
     await type(r, 'y');
 
     await vi.waitFor(() => expect(frame(r)).toContain('wrote it'));
-    expect(frame(r)).toContain('✓');
+    expect(frame(r)).toContain('write_file ok');
     expect(fs.readFileSync(path.join(dir, 'out.txt'), 'utf8')).toBe('hi');
     r.unmount();
   });

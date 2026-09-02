@@ -27,7 +27,7 @@ export function ToolCallCard({ name, detail, awaitingApproval, onDecision }: Pro
       marginTop={1}
     >
       <Text color="yellow" bold>
-        ⚙ {name}
+        [tool] {name}
       </Text>
       <Text>{detail}</Text>
       {awaitingApproval ? (

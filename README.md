@@ -1,4 +1,4 @@
-# ⚡ Snitch
+# Snitch
 
 A mini terminal coding agent in TypeScript (name inspired by the Golden Snitch from Harry Potter). You describe a task; Snitch plans, calls tools in a loop — reading and editing files, searching the repo, running shell commands — and reports back, with a human approval gate on anything that mutates your machine.
 
@@ -7,7 +7,7 @@ Lightweight by design (3 runtime dependencies), built in documented phases, and 
 ## Highlights
 
 - **Agent loop** — model → tool calls → results → model, until the task is done. Guards: iteration cap, context-budget trimming, Esc/Ctrl+C cancellation, graceful handling of denials, malformed arguments, and tool failures (all fed back to the model, never crashing the session).
-- **7 tools**: `read_file`, `write_file`✋, `edit_file`✋, `list_dir`, `glob`, `grep`, `run_command`✋ — ✋ marks the ones that show a y/n approval card before executing.
+- **7 tools**: `read_file`, `write_file`*, `edit_file`*, `list_dir`, `glob`, `grep`, `run_command`* — the starred ones show a y/n approval card before executing.
 - **Ink React TUI** — flicker-free transcript, live streaming output, tool approval cards, spinner + token/cost status bar, slash commands.
 - **Headless mode** — the same loop scripted from the command line (`--headless`), with y/n prompts on stdin.
 - **Provider abstraction** — raw `fetch` + a small SSE parser against OpenRouter's OpenAI-compatible API (no SDK). Retry-After-aware backoff for free-tier rate limits. A `--prompt-tools` adapter lets models *without* native tool calling drive the identical loop via fenced-JSON calls.

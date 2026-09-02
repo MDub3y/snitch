@@ -13,7 +13,7 @@ export function ItemView({ item }: { item: TranscriptItem }) {
       return (
         <Box marginTop={1}>
           <Text color="green" bold>
-            {'❯ '}
+            {'> '}
           </Text>
           <Text bold>{item.text}</Text>
         </Box>
@@ -25,12 +25,12 @@ export function ItemView({ item }: { item: TranscriptItem }) {
         </Box>
       );
     case 'tool': {
-      const badge = item.status === 'ok' ? '✓' : item.status === 'denied' ? '✗ denied' : '✗ error';
+      const badge = item.status === 'ok' ? 'ok' : item.status;
       const color = item.status === 'ok' ? 'yellow' : 'red';
       return (
         <Box paddingLeft={2}>
           <Text color={color}>
-            ⚙ {item.name} {badge}
+            [tool] {item.name} {badge}
           </Text>
           <Text dimColor> {item.summary}</Text>
         </Box>
