@@ -23,7 +23,7 @@
     - Per-tool vitest in temp dirs: edit ambiguity, run_command timeout tree-kill, binary-file skip
     - Snapshot test of the serialized OpenAI `tools` payload
 
-- [ ] **Phase 4 — Agent loop, headless E2E**
+- [x] **Phase 4 — Agent loop, headless E2E** (completed 2026-09-02; live E2E pending API key)
   - Prerequisites: Phases 2 + 3 (provider `StreamEvent`s + tool registry)
   - Acceptance:
     - `snitch --headless "create hello.py and run it"` works end-to-end with y/n prompts

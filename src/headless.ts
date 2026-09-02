@@ -1,33 +1,83 @@
-import { OpenRouterProvider } from './llm/openrouter.js';
+import readline from 'node:readline/promises';
+import { History } from './agent/history.js';
+import { runAgent } from './agent/loop.js';
+import { buildSystemPrompt } from './agent/prompts.js';
 import type { SnitchConfig } from './config.js';
 import { requireApiKey } from './config.js';
+import { OpenRouterProvider } from './llm/openrouter.js';
+import { createDefaultRegistry } from './tools/registry.js';
 
 /**
- * Phase 2 headless runner: one prompt in, streamed reply out.
- * Phase 4 upgrades this to drive the full agent loop with y/n approvals.
+ * Headless runner: one task in, agent loop with y/n approvals on stdin,
+ * streamed output on stdout, status on stderr. The Ink TUI (Phase 5) consumes
+ * the same AgentEvent stream.
  */
 export async function runHeadless(prompt: string, config: SnitchConfig): Promise<void> {
+  const cwd = process.cwd();
   const provider = new OpenRouterProvider({
     apiKey: requireApiKey(config),
     model: config.model,
     baseUrl: config.baseUrl,
   });
+  const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
 
-  const stream = provider.chat({
-    messages: [{ role: 'user', content: prompt }],
-    onRetry: ({ status, delayMs, attempt, maxAttempts }) =>
-      process.stderr.write(`[snitch] ${status} from OpenRouter, retry ${attempt}/${maxAttempts} in ${Math.round(delayMs / 1000)}s...\n`),
-  });
+  const controller = new AbortController();
+  const onSigint = () => controller.abort();
+  process.once('SIGINT', onSigint);
 
-  for await (const event of stream) {
-    if (event.type === 'text') process.stdout.write(event.delta);
-    if (event.type === 'usage') {
-      process.stderr.write(
-        `\n[snitch] tokens: ${event.usage.promptTokens} in / ${event.usage.completionTokens} out` +
-          (event.usage.cost !== undefined ? ` ($${event.usage.cost.toFixed(6)})` : '') +
-          '\n',
-      );
+  let exitCode = 0;
+  try {
+    const events = runAgent(prompt, {
+      provider,
+      registry: createDefaultRegistry(),
+      history: new History(buildSystemPrompt(cwd)),
+      cwd,
+      maxIterations: config.maxIterations,
+      tokenBudget: config.tokenBudget,
+      signal: controller.signal,
+      onRetry: ({ status, attempt, maxAttempts, delayMs }) =>
+        process.stderr.write(`[snitch] ${status} from OpenRouter, retry ${attempt}/${maxAttempts} in ${Math.round(delayMs / 1000)}s...\n`),
+    });
+
+    for await (const event of events) {
+      switch (event.type) {
+        case 'text_delta':
+          process.stdout.write(event.delta);
+          break;
+        case 'assistant_message':
+          process.stdout.write('\n');
+          break;
+        case 'tool_call_start':
+          process.stderr.write(`\n[tool] ${event.call.name} ${event.call.rawArguments.slice(0, 200)}\n`);
+          break;
+        case 'approval_required': {
+          const answer = await rl.question(`${event.preview}\napprove? [y/N] `);
+          event.respond(/^y(es)?$/i.test(answer.trim()));
+          break;
+        }
+        case 'tool_result': {
+          const head = event.result.split('\n').slice(0, 5).join('\n');
+          process.stderr.write(`[result] ${head}${event.result.length > head.length ? '\n…' : ''}\n`);
+          break;
+        }
+        case 'usage':
+          break; // totals reported at the end
+        case 'done':
+          if (event.reason === 'completed') break;
+          exitCode = 1;
+          process.stderr.write(
+            event.reason === 'max_iterations'
+              ? `\n[snitch] stopped: hit the ${config.maxIterations}-iteration limit\n`
+              : event.reason === 'cancelled'
+                ? '\n[snitch] cancelled\n'
+                : `\n[snitch] error: ${event.error}\n`,
+          );
+          break;
+      }
     }
+  } finally {
+    process.removeListener('SIGINT', onSigint);
+    rl.close();
   }
-  process.stdout.write('\n');
+  if (exitCode !== 0) process.exitCode = exitCode;
 }
