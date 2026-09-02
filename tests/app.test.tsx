@@ -15,6 +15,7 @@ const config: SnitchConfig = {
   baseUrl: 'http://localhost',
   tokenBudget: 200_000,
   maxIterations: 24,
+  promptTools: false,
 };
 
 let dir: string;
@@ -90,6 +91,29 @@ describe('App', () => {
     await vi.waitFor(() => expect(frame(r)).toContain('wrote it'));
     expect(frame(r)).toContain('✓');
     expect(fs.readFileSync(path.join(dir, 'out.txt'), 'utf8')).toBe('hi');
+    r.unmount();
+  });
+
+  it('handles /help and unknown slash commands', async () => {
+    const r = renderApp(new FakeProvider([]));
+    await type(r, '/help', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('/clear — reset the conversation'));
+
+    await type(r, '/nope', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('unknown command /nope'));
+    r.unmount();
+  });
+
+  it('/clear resets the transcript and /model switches the model label', async () => {
+    const r = renderApp(new FakeProvider([textTurn('remembered reply')]));
+    await type(r, 'first task', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('remembered reply'));
+
+    await type(r, '/clear', '\r');
+    await vi.waitFor(() => expect(frame(r)).not.toContain('remembered reply'));
+
+    await type(r, '/model other/model', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('model set to other/model'));
     r.unmount();
   });
 });

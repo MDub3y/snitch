@@ -1,11 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, useApp, useInput } from 'ink';
 import { History } from '../agent/history.js';
 import { runAgent, type UsageTotals } from '../agent/loop.js';
 import { buildSystemPrompt } from '../agent/prompts.js';
 import type { SnitchConfig } from '../config.js';
 import { requireApiKey } from '../config.js';
 import { OpenRouterProvider } from '../llm/openrouter.js';
+import { PromptToolAdapter } from '../llm/promptTools.js';
 import type { LLMProvider } from '../llm/types.js';
 import { createDefaultRegistry, type ToolRegistry } from '../tools/registry.js';
 import { InputBox } from './InputBox.js';
@@ -34,19 +35,28 @@ function summarize(result: string): string {
   return firstLine.length > 80 ? `${firstLine.slice(0, 80)}…` : firstLine;
 }
 
+const HELP_TEXT = [
+  '/help — show this list',
+  '/clear — reset the conversation and transcript',
+  '/model <id> — switch model (no argument: show the current model)',
+  '/exit — quit snitch',
+].join('\n');
+
 export function App({ config, provider: injectedProvider, registry: injectedRegistry, cwd: injectedCwd }: AppProps) {
   const cwd = injectedCwd ?? process.cwd();
-  const provider = useMemo<LLMProvider>(
-    () =>
-      injectedProvider ??
-      new OpenRouterProvider({ apiKey: requireApiKey(config), model: config.model, baseUrl: config.baseUrl }),
-    [injectedProvider, config],
-  );
+  const { exit } = useApp();
+  const [model, setModel] = useState(config.model);
+  const provider = useMemo<LLMProvider>(() => {
+    if (injectedProvider) return injectedProvider;
+    const openRouter = new OpenRouterProvider({ apiKey: requireApiKey(config), model, baseUrl: config.baseUrl });
+    return config.promptTools ? new PromptToolAdapter(openRouter) : openRouter;
+  }, [injectedProvider, config, model]);
   const registry = useMemo(() => injectedRegistry ?? createDefaultRegistry(), [injectedRegistry]);
   const historyRef = useRef(new History(buildSystemPrompt(cwd)));
   const abortRef = useRef<AbortController | null>(null);
 
   const [items, setItems] = useState<TranscriptItem[]>([]);
+  const [generation, setGeneration] = useState(0); // remounts <Static> on /clear
   const [mode, setMode] = useState<Mode>('input');
   const [streamText, setStreamText] = useState('');
   const [activeTool, setActiveTool] = useState<ActiveTool | null>(null);
@@ -55,7 +65,40 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
 
   const push = (item: TranscriptItem) => setItems((current) => [...current, item]);
 
+  const runSlashCommand = (input: string) => {
+    const [command, ...rest] = input.split(/\s+/);
+    const argument = rest.join(' ');
+    switch (command) {
+      case '/help':
+        push({ kind: 'info', text: HELP_TEXT });
+        break;
+      case '/clear':
+        historyRef.current = new History(buildSystemPrompt(cwd));
+        setItems([]);
+        setGeneration((g) => g + 1);
+        setTotals({ promptTokens: 0, completionTokens: 0, cost: 0 });
+        break;
+      case '/model':
+        if (argument) {
+          setModel(argument);
+          push({ kind: 'info', text: `model set to ${argument}` });
+        } else {
+          push({ kind: 'info', text: `current model: ${provider.model}` });
+        }
+        break;
+      case '/exit':
+        exit();
+        break;
+      default:
+        push({ kind: 'info', text: `unknown command ${command} — try /help` });
+    }
+  };
+
   const submit = (task: string) => {
+    if (task.startsWith('/')) {
+      runSlashCommand(task);
+      return;
+    }
     push({ kind: 'user', text: task });
     setMode('working');
     setStatus(null);
@@ -142,7 +185,7 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
 
   return (
     <Box flexDirection="column">
-      <Transcript items={items} />
+      <Transcript key={generation} items={items} />
       {streamText ? <ItemView item={{ kind: 'assistant', text: streamText }} /> : null}
       {activeTool ? (
         <ToolCallCard

@@ -12,6 +12,8 @@ export interface SnitchConfig {
   tokenBudget: number;
   /** Agent-loop iteration cap per user turn. */
   maxIterations: number;
+  /** Use the prompt-based tool-calling fallback instead of native tools. */
+  promptTools: boolean;
 }
 
 interface ConfigFile {
@@ -31,7 +33,7 @@ function readConfigFile(cwd: string): ConfigFile {
   }
 }
 
-export function loadConfig(overrides: { model?: string; cwd?: string } = {}): SnitchConfig {
+export function loadConfig(overrides: { model?: string; cwd?: string; promptTools?: boolean } = {}): SnitchConfig {
   const cwd = overrides.cwd ?? process.cwd();
 
   const envFile = path.join(cwd, '.env');
@@ -50,6 +52,7 @@ export function loadConfig(overrides: { model?: string; cwd?: string } = {}): Sn
     baseUrl: file.baseUrl ?? 'https://openrouter.ai/api/v1',
     tokenBudget: file.tokenBudget ?? 200_000,
     maxIterations: file.maxIterations ?? 24,
+    promptTools: overrides.promptTools ?? false,
   };
 }
 

@@ -35,13 +35,17 @@ tests/               # vitest: per-tool, SSE fixtures, FakeProvider loop tests
 1. **No OpenAI SDK** — raw `fetch` + a small SSE parser. Runtime deps are exactly `ink`, `react`, `tinyglobby`. Build is plain `tsc`; ESM-only (`"type": "module"`, NodeNext, `.js` extensions on relative imports).
 2. **UI-agnostic agent loop** — the loop is an async generator of `AgentEvent`s consumed identically by the headless runner and the Ink TUI.
 3. **Approval = suspended promise** — the loop emits `approval_required { call, preview, respond(bool) }` and waits; denial becomes a tool-result string ("User denied execution") fed back to the model.
-4. **Provider abstraction with a fallback seam** — `LLMProvider { capabilities: { nativeTools, streaming }, chat(): AsyncIterable<StreamEvent> }`. Native tool calling is primary; a `PromptToolAdapter` (Phase 6) wraps any provider, injecting tool docs into the system prompt and leniently parsing fenced-JSON tool calls into the same `ToolCallRequest` shape.
+4. **Provider abstraction with a fallback seam** — `LLMProvider { capabilities: { nativeTools, streaming }, chat(): AsyncIterable<StreamEvent> }`. Native tool calling is primary; `PromptToolAdapter` (`--prompt-tools`) wraps any provider: tool docs go into the system prompt, replies are buffered per turn, fenced ` ```tool_call ` JSON blocks come back out as tool_call events, and tool-role messages are flattened to user text (models without native tools reject `role: "tool"`).
 5. **Context trimming hook** — `History.toMessages(tokenBudget)`: chars/4 estimate, drop oldest complete exchange pairs (never the system prompt, never orphan a tool_call from its result), single truncation marker. ~200k-token default budget (a cost cap more than a context cap, given 1M context).
 6. **Windows-safe shell** — `run_command` uses `spawn(cmd, { shell: true })`; timeout/cancel kills the process **tree** via `taskkill /PID <pid> /T /F`. Grep is pure TS (walk + regex) — no ripgrep dependency.
 
-### TUI layout (Phase 5)
+### TUI layout
 
-`<Static>` transcript (past messages + resolved tool cards, flicker-free) → live streaming tail → active ToolCallCard `[y]/[n]` → InputBox → StatusBar (model, spinner, token/cost tally). One app-level mode (`input | thinking | streaming | approval`) decides whose `useInput` is live; Esc triggers an `AbortController`.
+`<Static>` transcript (past messages + resolved tool cards, flicker-free) → live streaming tail → active ToolCallCard `[y]/[n]` → InputBox → StatusBar (model, spinner, token/cost tally). One app-level mode (`input | working | approval`) decides whose `useInput` is live; Esc triggers an `AbortController`. Slash commands: `/help`, `/clear` (new History + `<Static>` remount via a generation key), `/model <id>` (rebuilds the provider), `/exit`.
+
+### CLI
+
+`snitch [--headless "<prompt>"] [--model <id>] [--prompt-tools]` — headless mode drives the same agent loop with readline y/n approvals (stdout: reply text; stderr: tool/status lines).
 
 ## v1 Toolset
 

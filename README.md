@@ -22,6 +22,19 @@ npm run build      # compile to dist/
 npm link           # make the `snitch` command available globally
 ```
 
+## Usage
+
+```sh
+snitch                                 # interactive TUI
+snitch --headless "create hello.py and run it"   # one-shot task, y/n prompts on stdin
+snitch --model poolside/laguna-s-2.1   # override the model for this run
+snitch --prompt-tools                  # prompt-based tool calling for models without native support
+```
+
+Inside the TUI: type a task and press Enter. Tool calls that mutate anything show an approval card — press `y` to run or `n` to deny. `Esc` cancels a running task.
+
+Slash commands: `/help`, `/clear` (reset conversation), `/model <id>` (switch model), `/exit`.
+
 ## Documentation
 
 | Doc | What's in it |

@@ -5,6 +5,7 @@ import { buildSystemPrompt } from './agent/prompts.js';
 import type { SnitchConfig } from './config.js';
 import { requireApiKey } from './config.js';
 import { OpenRouterProvider } from './llm/openrouter.js';
+import { PromptToolAdapter } from './llm/promptTools.js';
 import { createDefaultRegistry } from './tools/registry.js';
 
 /**
@@ -14,11 +15,12 @@ import { createDefaultRegistry } from './tools/registry.js';
  */
 export async function runHeadless(prompt: string, config: SnitchConfig): Promise<void> {
   const cwd = process.cwd();
-  const provider = new OpenRouterProvider({
+  const openRouter = new OpenRouterProvider({
     apiKey: requireApiKey(config),
     model: config.model,
     baseUrl: config.baseUrl,
   });
+  const provider = config.promptTools ? new PromptToolAdapter(openRouter) : openRouter;
   const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
 
   const controller = new AbortController();

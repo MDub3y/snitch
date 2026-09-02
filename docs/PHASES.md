@@ -2,6 +2,8 @@
 
 > A phase is **done** only when: acceptance criteria met, tests green, its checkbox below is ticked with a completion date, and [SPEC.md](SPEC.md) / [DECISIONS.md](DECISIONS.md) reflect anything the phase changed or decided.
 
+**Pending live verification (blocked on the OpenRouter API key):** `snitch --headless "say hi"` streaming smoke test (Phase 2), `snitch --headless "create hello.py and run it"` live E2E (Phase 4), a full interactive TUI session incl. Esc-cancel mid-stream (Phase 5), and `--prompt-tools` against the real model (Phase 6). Everything else is covered by the 62-test suite (FakeProvider + SSE fixtures).
+
 - [x] **Phase 1 — Scaffold + Ink hello world + docs skeleton** (completed 2026-09-02)
   - Prerequisites: none (empty repo; Node ≥ 22 installed)
   - Acceptance:
@@ -36,7 +38,7 @@
     - Full interactive session; approval cards block until answered
     - Esc cancels mid-stream; Ctrl+C exits and restores the terminal; resize-safe
 
-- [ ] **Phase 6 — Polish**
+- [x] **Phase 6 — Polish** (completed 2026-09-02)
   - Prerequisites: Phase 5 (slash commands / cost tally live in the TUI); the fallback adapter itself needs only Phase 4
   - Acceptance:
     - `/help` `/clear` `/model` `/exit` slash commands

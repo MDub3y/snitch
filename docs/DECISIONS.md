@@ -2,6 +2,17 @@
 
 > Newest first. Each entry: what was decided, why, and what was rejected.
 
+## 2026-09-02 — Prompt-tools fallback flattens tool messages to user text
+
+**Decided**: `PromptToolAdapter` buffers each reply (no live deltas), extracts fenced ` ```tool_call ` JSON blocks as tool calls, rewrites assistant tool_calls into the same fenced form, and converts `role: "tool"` results into `[tool result]` user messages.
+**Why**: Models without native tool calling reject `role: "tool"` and `tool_calls` fields, and Laguna has no JSON mode, so parsing must be lenient (unparseable blocks stay visible in text rather than crashing). Buffering is required because call blocks must be stripped before display.
+**Rejected**: XML-style call syntax (JSON is what tool-trained models emit most reliably); streaming with post-hoc cleanup (flickers the call block at the user).
+
+## 2026-09-02 — /clear remounts <Static> via a generation key
+
+**Decided**: Clearing the transcript replaces the History instance, empties the items array, and bumps a `key` on `<Static>` to remount it.
+**Why**: Ink's `<Static>` tracks how many items it has already emitted; shrinking the array without a remount would silently skip that many future items.
+
 ## 2026-09-02 — Ink TUI from day one
 
 **Decided**: Build the UI with Ink (React TUI) starting in Phase 1, rather than a plain readline REPL.
