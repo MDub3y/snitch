@@ -1,23 +1,47 @@
 # ⚡ Snitch
 
-A mini terminal coding agent in TypeScript (name inspired by the Golden Snitch from Harry Potter). Lightweight by design, built in phases, and structured for future optimization.
+A mini terminal coding agent in TypeScript (name inspired by the Golden Snitch from Harry Potter). You describe a task; Snitch plans, calls tools in a loop — reading and editing files, searching the repo, running shell commands — and reports back, with a human approval gate on anything that mutates your machine.
 
-- **LLM**: `poolside/laguna-s-2.1:free` via [OpenRouter](https://openrouter.ai) (swappable — see the provider abstraction in [docs/SPEC.md](docs/SPEC.md))
-- **UI**: [Ink](https://github.com/vadimdemedes/ink) React TUI
-- **Safety**: file writes/edits and shell commands require y/n approval before executing
+Lightweight by design (3 runtime dependencies), built in documented phases, and structured so the model, tools, and UI can each evolve independently.
+
+## Highlights
+
+- **Agent loop** — model → tool calls → results → model, until the task is done. Guards: iteration cap, context-budget trimming, Esc/Ctrl+C cancellation, graceful handling of denials, malformed arguments, and tool failures (all fed back to the model, never crashing the session).
+- **7 tools**: `read_file`, `write_file`✋, `edit_file`✋, `list_dir`, `glob`, `grep`, `run_command`✋ — ✋ marks the ones that show a y/n approval card before executing.
+- **Ink React TUI** — flicker-free transcript, live streaming output, tool approval cards, spinner + token/cost status bar, slash commands.
+- **Headless mode** — the same loop scripted from the command line (`--headless`), with y/n prompts on stdin.
+- **Provider abstraction** — raw `fetch` + a small SSE parser against OpenRouter's OpenAI-compatible API (no SDK). Retry-After-aware backoff for free-tier rate limits. A `--prompt-tools` adapter lets models *without* native tool calling drive the identical loop via fenced-JSON calls.
+- **Windows-safe shell** — command timeouts and cancellation kill the whole process tree (`taskkill /T /F`), not just the parent.
+
+Default model: `poolside/laguna-s-2.1:free` via [OpenRouter](https://openrouter.ai) — swappable per run (`--model`) or per session (`/model`).
+
+## Architecture
+
+```
+src/
+├── index.tsx      # CLI entry: --headless, --model, --prompt-tools
+├── config.ts      # API key, model, budgets (.env / snitch.config.json / flags)
+├── llm/           # LLMProvider contract, OpenRouter + SSE, retry, prompt-tools adapter
+├── tools/         # tool contract + registry, fs / search / shell tools
+├── agent/         # the loop (AgentEvent stream), history + trimming, system prompt
+├── ui/            # Ink components: App, Transcript, ToolCallCard, InputBox, StatusBar
+└── headless.ts    # readline-driven runner over the same AgentEvent stream
+```
+
+The loop is an async generator of `AgentEvent`s and knows nothing about rendering — the TUI and the headless runner are just two consumers of the same stream. Approvals work by suspending the generator on a promise until the user answers.
 
 ## Requirements
 
 - Node.js ≥ 22
 - A real terminal (Windows Terminal recommended on Windows — legacy conhost is flaky with raw input)
-- An OpenRouter API key (from Phase 2 onward): set `SNITCH_API_KEY` or `OPENROUTER_API_KEY`
+- An OpenRouter API key: set `SNITCH_API_KEY` or `OPENROUTER_API_KEY` (environment or `.env` file)
 
 ## Getting started
 
 ```sh
 npm install
 npm run dev        # run the TUI from source
-npm test           # run the vitest suite
+npm test           # run the vitest suite (62 tests)
 npm run build      # compile to dist/
 npm link           # make the `snitch` command available globally
 ```
@@ -45,4 +69,4 @@ Slash commands: `/help`, `/clear` (reset conversation), `/model <id>` (switch mo
 
 ## Project status
 
-Under active development — see [docs/PHASES.md](docs/PHASES.md) for what's done and what's next.
+v1 complete: all 6 development phases are implemented and tested (see [docs/PHASES.md](docs/PHASES.md)). Live verification against the real model is listed there as pending an API key; everything else is covered by the test suite (FakeProvider + SSE fixtures — no key needed).
