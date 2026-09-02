@@ -10,7 +10,7 @@
     - vitest suite green
     - `README.md` + `docs/` (SPEC, PHASES, DECISIONS) created; git repo initialized
 
-- [ ] **Phase 2 — Provider layer + config**
+- [x] **Phase 2 — Provider layer + config** (completed 2026-09-02; live smoke test pending API key)
   - Prerequisites: Phase 1 (ESM/tsc toolchain, `snitch` bin working)
   - Acceptance:
     - `snitch --headless "say hi"` streams a Laguna reply (live run needs the API key)
