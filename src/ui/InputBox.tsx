@@ -4,9 +4,10 @@ import { Box, Text, useInput } from 'ink';
 interface Props {
   active: boolean;
   onSubmit: (value: string) => void;
+  placeholder?: string;
 }
 
-export function InputBox({ active, onSubmit }: Props) {
+export function InputBox({ active, onSubmit, placeholder = 'describe a task…' }: Props) {
   const [value, setValue] = useState('');
 
   useInput(
@@ -37,7 +38,7 @@ export function InputBox({ active, onSubmit }: Props) {
       </Text>
       <Text>{value}</Text>
       {active ? <Text inverse> </Text> : null}
-      {!value && active ? <Text dimColor>describe a task…</Text> : null}
+      {!value && active ? <Text dimColor>{placeholder}</Text> : null}
     </Box>
   );
 }

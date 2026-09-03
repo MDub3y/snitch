@@ -41,7 +41,7 @@ The loop is an async generator of `AgentEvent`s and knows nothing about renderin
 ```sh
 npm install
 npm run dev        # run the TUI from source
-npm test           # run the vitest suite (65 tests)
+npm test           # run the vitest suite (66 tests)
 npm run build      # compile to dist/
 npm link           # make the `snitch` command available globally
 ```
@@ -56,7 +56,7 @@ snitch --model poolside/laguna-s-2.1   # override the model for this run
 snitch --prompt-tools                  # prompt-based tool calling for models without native support
 ```
 
-Inside the TUI: type a task and press Enter. Tool calls that mutate anything show an approval card — press `y` to run or `n` to deny. `Esc` cancels a running task.
+Inside the TUI: type a task and press Enter. Tool calls that mutate anything show an approval card — press `y` to run or `n` to deny. `Esc` cancels a running task. While the agent is working you can keep typing: Enter queues the next message and it runs when the current task finishes.
 
 Slash commands: `/help`, `/clear` (reset conversation), `/model <id>` (switch model), `/exit`. Quitting also works the way any terminal tool does: type `exit`, `quit`, or `q`, or press `Ctrl+D` or `Ctrl+C`.
 

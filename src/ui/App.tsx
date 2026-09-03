@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Box, useApp, useInput } from 'ink';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Text, useApp, useInput } from 'ink';
 import { History } from '../agent/history.js';
 import { runAgent, type UsageTotals } from '../agent/loop.js';
 import { buildSystemPrompt } from '../agent/prompts.js';
@@ -65,6 +65,9 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
   const [activeTool, setActiveTool] = useState<ActiveTool | null>(null);
   const [totals, setTotals] = useState<UsageTotals>({ promptTokens: 0, completionTokens: 0, cost: 0 });
   const [status, setStatus] = useState<string | null>(null);
+  const busyRef = useRef(false);
+  const queueRef = useRef<string[]>([]);
+  const [queued, setQueued] = useState<string[]>([]); // render copy of queueRef
 
   const push = (item: TranscriptItem) => setItems((current) => [...current, item]);
 
@@ -102,10 +105,17 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
       exit();
       return;
     }
+    if (busyRef.current) {
+      // A run is in flight — queue the input; the drain effect picks it up when the run ends.
+      queueRef.current.push(task);
+      setQueued([...queueRef.current]);
+      return;
+    }
     if (task.startsWith('/')) {
       runSlashCommand(task);
       return;
     }
+    busyRef.current = true;
     push({ kind: 'user', text: task });
     setMode('working');
     setStatus(null);
@@ -172,9 +182,20 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
       setActiveTool(null);
       setStatus(null); // a run that ends mid-retry must not leave a stale retry message
       abortRef.current = null;
+      busyRef.current = false;
       setMode('input');
     })();
   };
+
+  // Drain one queued input per render pass once the loop is idle. Running this
+  // from an effect (not the finished run's closure) means a queued /model
+  // switch takes effect before the tasks queued behind it.
+  useEffect(() => {
+    if (mode !== 'input' || queueRef.current.length === 0) return;
+    const next = queueRef.current.shift()!;
+    setQueued([...queueRef.current]);
+    submit(next);
+  });
 
   const decide = (approved: boolean) => {
     setActiveTool((current) => {
@@ -211,8 +232,17 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
           onDecision={decide}
         />
       ) : null}
-      <Box marginTop={1}>
-        <InputBox active={mode === 'input'} onSubmit={submit} />
+      <Box marginTop={1} flexDirection="column">
+        {queued.map((task, index) => (
+          <Text key={index} dimColor>
+            [queued] {task}
+          </Text>
+        ))}
+        <InputBox
+          active={mode !== 'approval'}
+          onSubmit={submit}
+          placeholder={mode === 'working' ? 'type to queue the next task…' : 'describe a task…'}
+        />
       </Box>
       <StatusBar model={provider.model} mode={mode} totals={totals} status={status} />
     </Box>

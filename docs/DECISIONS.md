@@ -2,7 +2,11 @@
 
 > Newest first. Each entry: what was decided, why, and what was rejected.
 
-## 2026-09-03 — Prompt-tools extractor also parses XML-style tool_call markup
+## 2026-09-03 — Type-ahead input queue while the agent works
+
+**Decided**: The input line stays active during a run; Enter enqueues the message and a React effect drains the queue one item per idle pass. Input deactivates only in approval mode.
+**Why**: Standard terminal-agent UX — the user should never be locked out of typing their next instruction. Draining from an effect (not the finished run's closure) keeps provider/model state fresh, so a queued `/model` applies to tasks behind it. Approval mode must own the keyboard exclusively or `y`/`n` keystrokes would double as task text.
+**Rejected**: Submitting queued text mid-run into the live conversation (would interleave with tool turns the model hasn't finished); leaving input disabled (the complaint that prompted this).
 
 **Decided**: `extractToolCalls` accepts both the instructed fenced-JSON blocks and `<tool_call>name<arg_key>k</arg_key><arg_value>v</arg_value></tool_call>` markup. XML arg values are coerced to numbers/booleans only when the whole value is an unambiguous scalar; everything else stays a verbatim string.
 **Why**: First live `--prompt-tools` run showed Laguna ignores the fenced-JSON instruction and emits its trained XML format, so the fallback silently did nothing. Scalar-only coercion prevents mangling file content that happens to look like JSON.

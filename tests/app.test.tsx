@@ -5,6 +5,7 @@ import React from 'react';
 import { render } from 'ink-testing-library';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SnitchConfig } from '../src/config.js';
+import type { ChatOptions, StreamEvent } from '../src/llm/types.js';
 import { createDefaultRegistry } from '../src/tools/registry.js';
 import { App } from '../src/ui/App.js';
 import { FakeProvider, textTurn, toolTurn } from './helpers/fakeProvider.js';
@@ -112,6 +113,40 @@ describe('App', () => {
 
     await type(r, '/nope', '\r');
     await vi.waitFor(() => expect(frame(r)).toContain('unknown command /nope'));
+    r.unmount();
+  });
+
+  it('queues input typed while the agent is working and runs it afterwards', async () => {
+    // Holds the first turn open until release() so the test can type mid-run.
+    class GatedProvider extends FakeProvider {
+      release!: () => void;
+      private readonly gate = new Promise<void>((resolve) => {
+        this.release = resolve;
+      });
+      private first = true;
+      async *chat(options: ChatOptions): AsyncIterable<StreamEvent> {
+        if (this.first) {
+          this.first = false;
+          await this.gate;
+        }
+        yield* super.chat(options);
+      }
+    }
+    const provider = new GatedProvider([textTurn('first done'), textTurn('second done')]);
+    const r = renderApp(provider);
+
+    await type(r, 'first task', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('working'));
+
+    await type(r, 'second task', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('[queued] second task'));
+    expect(frame(r)).not.toContain('first done'); // still gated
+
+    provider.release();
+    await vi.waitFor(() => expect(frame(r)).toContain('second done'));
+    expect(frame(r)).toContain('first done');
+    expect(frame(r)).toContain('> second task');
+    expect(frame(r)).not.toContain('[queued]'); // queue drained
     r.unmount();
   });
 
