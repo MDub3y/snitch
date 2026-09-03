@@ -2,7 +2,11 @@
 
 > Newest first. Each entry: what was decided, why, and what was rejected.
 
-## 2026-09-03 — Type-ahead input queue while the agent works
+## 2026-09-03 — run_command prefers Git Bash on Windows
+
+**Decided**: `resolveShell()` picks the shell once: Git Bash (`Git\bin\bash.exe` under ProgramFiles/LOCALAPPDATA) when installed on Windows, cmd.exe otherwise, platform `sh` elsewhere. The chosen shell's name is injected into the system prompt so the model writes the right dialect.
+**Why**: A consistent POSIX dialect across platforms means the model never has to reason about cmd quirks; small models especially emit bash-isms regardless. Verified live: `&&` chains and coreutils work on Windows through Git Bash.
+**Rejected**: WSL's System32 bash.exe (executes inside the WSL filesystem, not the project's); requiring bash (cmd fallback keeps zero hard dependencies); per-command shell selection (one shell per session keeps the prompt truthful).
 
 **Decided**: The input line stays active during a run; Enter enqueues the message and a React effect drains the queue one item per idle pass. Input deactivates only in approval mode.
 **Why**: Standard terminal-agent UX — the user should never be locked out of typing their next instruction. Draining from an effect (not the finished run's closure) keeps provider/model state fresh, so a queued `/model` applies to tasks behind it. Approval mode must own the keyboard exclusively or `y`/`n` keystrokes would double as task text.

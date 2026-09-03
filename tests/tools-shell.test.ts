@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultRegistry } from '../src/tools/registry.js';
+import { resolveShell } from '../src/tools/shell.js';
 import type { ToolContext } from '../src/tools/types.js';
 
 let dir: string;
@@ -16,6 +17,22 @@ beforeEach(() => {
 });
 
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+describe('resolveShell', () => {
+  it('uses the platform default shell on non-Windows', () => {
+    expect(resolveShell(() => true, 'linux')).toEqual({ shell: true, name: 'sh' });
+  });
+
+  it('prefers Git Bash on Windows when installed', () => {
+    const choice = resolveShell((candidate) => candidate.endsWith('bash.exe'), 'win32');
+    expect(choice.name).toBe('bash (Git Bash)');
+    expect(String(choice.shell)).toMatch(/Git[\\/]bin[\\/]bash\.exe$/);
+  });
+
+  it('falls back to cmd.exe on Windows without Git Bash', () => {
+    expect(resolveShell(() => false, 'win32')).toEqual({ shell: true, name: 'cmd.exe' });
+  });
+});
 
 describe('run_command', () => {
   it('captures output and a zero exit code', async () => {
