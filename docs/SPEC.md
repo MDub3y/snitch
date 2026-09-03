@@ -23,7 +23,7 @@ src/
 ├── config.ts        # key/model/config resolution
 ├── llm/    types.ts · openrouter.ts · retry.ts · promptTools.ts
 ├── tools/  types.ts · registry.ts · fs.ts · search.ts · shell.ts
-├── agent/  loop.ts · history.ts · prompts.ts
+├── agent/  loop.ts · history.ts · prompts.ts  (system prompt: identity + env block with cwd listing + SNITCH.md project instructions)
 ├── ui/     App.tsx · Transcript.tsx · MessageView.tsx · ToolCallCard.tsx · InputBox.tsx · StatusBar.tsx
 ├── headless.ts      # readline-driven runner (testing + piping)
 └── util/   errors.ts · tokens.ts

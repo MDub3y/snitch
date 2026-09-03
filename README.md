@@ -58,6 +58,8 @@ snitch --prompt-tools                  # prompt-based tool calling for models wi
 
 Inside the TUI: type a task and press Enter. Tool calls that mutate anything show an approval card — press `y` to run or `n` to deny. `Esc` cancels a running task. While the agent is working you can keep typing: Enter queues the next message and it runs when the current task finishes.
 
+Project instructions: if a `SNITCH.md` file exists in the working directory, its contents are injected into the system prompt at startup (and on `/clear`) — use it for project conventions, build commands, style rules, and anything else the agent should always know.
+
 Slash commands: `/help`, `/clear` (reset conversation), `/model <id>` (switch model), `/exit`. Quitting also works the way any terminal tool does: type `exit`, `quit`, or `q`, or press `Ctrl+D` or `Ctrl+C`.
 
 ## Documentation
