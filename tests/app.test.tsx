@@ -150,6 +150,53 @@ describe('App', () => {
     r.unmount();
   });
 
+  it('plan mode blocks mutating tools and shows a status badge', async () => {
+    const provider = new FakeProvider([
+      toolTurn([{ id: 'call_1', name: 'write_file', args: '{"path":"out.txt","content":"hi"}' }]),
+      textTurn('here is the plan instead'),
+    ]);
+    const r = renderApp(provider);
+    await type(r, '/plan', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('plan mode on'));
+    expect(frame(r)).toContain('[plan]');
+
+    await type(r, 'change something', '\r');
+    // write_file is not in the read-only registry: no approval card, an error result instead
+    await vi.waitFor(() => expect(frame(r)).toContain('here is the plan instead'));
+    expect(frame(r)).toContain('write_file error');
+    expect(frame(r)).not.toContain('approve?');
+    expect(fs.existsSync(path.join(dir, 'out.txt'))).toBe(false);
+
+    await type(r, '/plan', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('plan mode off'));
+    r.unmount();
+  });
+
+  it('/compact reports when the conversation is too short to compact', async () => {
+    const r = renderApp(new FakeProvider([textTurn('reply one')]));
+    await type(r, 'a task', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('reply one'));
+
+    await type(r, '/compact', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('nothing to compact yet'));
+    r.unmount();
+  });
+
+  it('/compact summarizes a long conversation through the model', async () => {
+    const turns = Array.from({ length: 5 }, (_, i) => textTurn(`reply ${i}`));
+    const provider = new FakeProvider([...turns, textTurn('a compact summary')]);
+    const r = renderApp(provider);
+    for (let i = 0; i < 5; i++) {
+      await type(r, `task number ${i}`, '\r');
+      await vi.waitFor(() => expect(frame(r)).toContain(`reply ${i}`));
+    }
+    await type(r, '/compact', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain('history compacted'));
+    // the summarizer call saw the old exchanges
+    expect(JSON.stringify(provider.seenMessages.at(-1))).toContain('task number 0');
+    r.unmount();
+  });
+
   it('/clear resets the transcript and /model switches the model label', async () => {
     const r = renderApp(new FakeProvider([textTurn('remembered reply')]));
     await type(r, 'first task', '\r');

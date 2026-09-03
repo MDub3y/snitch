@@ -9,9 +9,10 @@ interface Props {
   mode: 'input' | 'working' | 'approval';
   totals: UsageTotals;
   status: string | null;
+  planMode?: boolean;
 }
 
-export function StatusBar({ model, mode, totals, status }: Props) {
+export function StatusBar({ model, mode, totals, status, planMode = false }: Props) {
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export function StatusBar({ model, mode, totals, status }: Props) {
   return (
     <Box justifyContent="space-between">
       <Text dimColor>
+        {planMode ? <Text color="cyan">[plan] </Text> : null}
         {mode === 'working' ? `${FRAMES[frame]} working` : mode === 'approval' ? 'awaiting approval' : '· ready'}
         {status ? `  ${status}` : ''}
         {'  '}

@@ -20,6 +20,11 @@ describe('ToolRegistry', () => {
     expect(needsApproval).toEqual(['write_file', 'edit_file', 'run_command']);
   });
 
+  it('readOnlyView keeps exactly the tools that need no approval', () => {
+    const names = registry.readOnlyView().names();
+    expect(names).toEqual(['read_file', 'list_dir', 'glob', 'grep', 'todo_write', 'fetch_url']);
+  });
+
   it('serializes to the OpenAI tools wire format', () => {
     expect(registry.toSpecs()).toMatchSnapshot();
   });

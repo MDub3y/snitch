@@ -10,24 +10,26 @@ interface CliArgs {
   headless: boolean;
   promptTools: boolean;
   yes: boolean;
+  plan: boolean;
   model?: string;
   prompt: string;
 }
 
 function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { headless: false, promptTools: false, yes: false, prompt: '' };
+  const args: CliArgs = { headless: false, promptTools: false, yes: false, plan: false, prompt: '' };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     if (arg === '--headless') args.headless = true;
     else if (arg === '--prompt-tools') args.promptTools = true;
     else if (arg === '--yes' || arg === '-y') args.yes = true;
+    else if (arg === '--plan') args.plan = true;
     else if (arg === '--model') {
       const value = argv[++i];
       if (!value) throw new SnitchError('--model requires a value, e.g. --model poolside/laguna-s-2.1:free');
       args.model = value;
     } else if (arg === '--help' || arg === '-h') {
-      console.log('usage: snitch [--headless "<prompt>"] [--yes] [--model <id>] [--prompt-tools]');
+      console.log('usage: snitch [--headless "<prompt>"] [--yes] [--plan] [--model <id>] [--prompt-tools]');
       process.exit(0);
     } else positional.push(arg);
   }
@@ -41,7 +43,7 @@ try {
 
   if (args.headless) {
     if (!args.prompt) throw new SnitchError('Headless mode needs a prompt: snitch --headless "your task"');
-    await runHeadless(args.prompt, config, { yes: args.yes });
+    await runHeadless(args.prompt, config, { yes: args.yes, plan: args.plan });
   } else {
     if (!process.stdin.isTTY) {
       throw new SnitchError(

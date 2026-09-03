@@ -52,6 +52,7 @@ npm link           # make the `snitch` command available globally
 snitch                                 # interactive TUI
 snitch --headless "create hello.py and run it"   # one-shot task, y/n prompts on stdin
 snitch --headless --yes "..."          # one-shot task, auto-approve tool calls (for scripts/pipes)
+snitch --headless --plan "..."         # plan mode: read-only tools, returns a plan instead of changes
 snitch --model poolside/laguna-s-2.1   # override the model for this run
 snitch --prompt-tools                  # prompt-based tool calling for models without native support
 ```
@@ -60,7 +61,7 @@ Inside the TUI: type a task and press Enter. Tool calls that mutate anything sho
 
 Project instructions: if a `SNITCH.md` file exists in the working directory, its contents are injected into the system prompt at startup (and on `/clear`) — use it for project conventions, build commands, style rules, and anything else the agent should always know.
 
-Slash commands: `/help`, `/clear` (reset conversation), `/model <id>` (switch model), `/exit`. Quitting also works the way any terminal tool does: type `exit`, `quit`, or `q`, or press `Ctrl+D` or `Ctrl+C`.
+Slash commands: `/help`, `/clear` (reset conversation), `/plan` (toggle plan mode — the agent gets read-only tools and proposes a step-by-step plan instead of editing), `/compact` (summarize old conversation to free context; also happens automatically near the token budget), `/model <id>` (switch model), `/exit`. Quitting also works the way any terminal tool does: type `exit`, `quit`, or `q`, or press `Ctrl+D` or `Ctrl+C`.
 
 ## Documentation
 

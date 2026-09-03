@@ -23,6 +23,19 @@ export class ToolRegistry {
     return [...this.tools.keys()];
   }
 
+  /**
+   * A view holding only the tools that need no approval — exactly the
+   * read-only ones. Plan mode runs the loop against this, so the model
+   * physically cannot mutate anything while planning.
+   */
+  readOnlyView(): ToolRegistry {
+    const view = new ToolRegistry();
+    for (const tool of this.tools.values()) {
+      if (!tool.requiresApproval) view.register(tool);
+    }
+    return view;
+  }
+
   /** Serializes every tool into the OpenAI `tools` wire format. */
   toSpecs(): ToolSpec[] {
     return [...this.tools.values()].map((tool) => ({

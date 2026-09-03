@@ -2,7 +2,17 @@
 
 > Newest first. Each entry: what was decided, why, and what was rejected.
 
-## 2026-09-03 — task tool: one-level sub-agents, approval at the spawn
+## 2026-09-03 — Plan mode removes tools instead of asking nicely
+
+**Decided**: `/plan` (TUI) and `--plan` (headless) run the loop against `registry.readOnlyView()` — only no-approval tools exist for that turn — plus a plan-only instruction appended to the task. Toggling shows a `[plan]` status badge.
+**Why**: A small model cannot be trusted to obey "do not edit" as an instruction alone; removing the mutating tools from the wire payload makes violation impossible rather than discouraged. requiresApproval doubles as the read-only marker, so the view needs no new metadata.
+**Rejected**: Prompt-only plan mode (unenforceable); auto-denying mutating calls (wastes a model round trip per attempt and fills history with denials).
+
+## 2026-09-03 — Compaction complements trimming
+
+**Decided**: `/compact` and an automatic pre-task pass (at >80% of the token budget) have the model summarize everything except the last 6 messages; `History.compact()` swaps the old messages for the summary as a user note, keeping the tail orphan-safe. Trimming in `toMessages()` stays as the silent last-resort safety net.
+**Why**: Trimming loses information; compaction preserves it in condensed form. Manual + threshold-triggered keeps compaction calls rare on the free tier.
+**Rejected**: Compacting inside runAgent (would need provider access in every consumer and a new event type); summarizing on every turn (too many extra model calls).
 
 **Decided**: `task(description, prompt)` runs a fresh agent loop (empty History, same system prompt, fresh default registry) to completion and returns its final text. The sub-agent auto-approves its own tool calls; instead, `task` itself is approval-gated and its preview shows the sub-agent's prompt plus a warning. Recursion is impossible by construction: `task` is registered on top of `createDefaultRegistry()` by the entry points, and sub-agents get a plain default registry. The file lives in `src/agent/` because it depends on the loop.
 **Why**: Delegation keeps big exploratory work out of the parent's context. Per-call approvals inside a sub-agent would defeat the point and double-prompt the human, so trust is granted once, at the spawn, with the prompt visible. `getProvider` is a callback so a mid-session /model switch reaches sub-agents.

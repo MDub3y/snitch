@@ -17,6 +17,8 @@ import { createDefaultRegistry } from './tools/registry.js';
 export interface HeadlessOptions {
   /** Auto-approve every tool call (--yes). For scripted/piped runs where stdin cannot answer prompts. */
   yes?: boolean;
+  /** Plan mode (--plan): read-only tools only; the agent proposes a plan instead of making changes. */
+  plan?: boolean;
 }
 
 export async function runHeadless(prompt: string, config: SnitchConfig, options: HeadlessOptions = {}): Promise<void> {
@@ -35,11 +37,15 @@ export async function runHeadless(prompt: string, config: SnitchConfig, options:
 
   let exitCode = 0;
   try {
-    const registry = createDefaultRegistry();
+    let registry = createDefaultRegistry();
     registry.register(
       createTaskTool({ getProvider: () => provider, maxIterations: config.maxIterations, tokenBudget: config.tokenBudget }),
     );
-    const events = runAgent(prompt, {
+    if (options.plan) registry = registry.readOnlyView();
+    const message = options.plan
+      ? `${prompt}\n\n[Plan mode is on: you only have read-only tools this turn. Investigate as needed, then present a concrete step-by-step plan. Do not attempt changes.]`
+      : prompt;
+    const events = runAgent(message, {
       provider,
       registry,
       history: new History(buildSystemPrompt(cwd)),

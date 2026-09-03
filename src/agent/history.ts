@@ -31,6 +31,41 @@ export class History {
     this.messages.length = 0;
   }
 
+  /** Naive token estimate (chars/4) of the whole serialized conversation. */
+  estimate(): number {
+    return estimateTokens(JSON.stringify([{ role: 'system', content: this.systemPrompt }, ...this.messages]));
+  }
+
+  /** Plain-text rendering of everything older than the last `keepRecent` messages, for the summarizer. */
+  transcript(keepRecent: number): string {
+    const older = this.messages.slice(0, Math.max(0, this.messages.length - keepRecent));
+    return older
+      .map((message) => {
+        if (message.role === 'assistant') {
+          const calls = message.tool_calls
+            ?.map((call) => `${call.function.name}(${call.function.arguments.slice(0, 200)})`)
+            .join(', ');
+          return `assistant: ${message.content ?? ''}${calls ? `\n[called: ${calls}]` : ''}`;
+        }
+        if (message.role === 'tool') return `tool result: ${message.content.slice(0, 500)}`;
+        return `${message.role}: ${message.content}`;
+      })
+      .join('\n');
+  }
+
+  /**
+   * Replaces everything except the last `keepRecent` messages with a summary
+   * note. The kept tail never starts on an orphaned tool result.
+   */
+  compact(summary: string, keepRecent: number): void {
+    if (this.messages.length <= keepRecent) return;
+    let tail = this.messages.slice(-keepRecent);
+    while (tail[0]?.role === 'tool') tail = tail.slice(1);
+    const note: ChatMessage = { role: 'user', content: `[Summary of the earlier conversation]\n${summary}` };
+    this.messages.length = 0;
+    this.messages.push(note, ...tail);
+  }
+
   /**
    * Returns system prompt + messages, dropping the oldest messages when the
    * naive token estimate exceeds `tokenBudget`. Never drops the system prompt

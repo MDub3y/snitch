@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
+import { compactHistory } from '../agent/compact.js';
 import { History } from '../agent/history.js';
 import { runAgent, type UsageTotals } from '../agent/loop.js';
 import { buildSystemPrompt } from '../agent/prompts.js';
@@ -39,6 +40,8 @@ function summarize(result: string): string {
 const HELP_TEXT = [
   '/help — show this list',
   '/clear — reset the conversation and transcript',
+  '/plan — toggle plan mode (read-only tools; the agent proposes instead of editing)',
+  '/compact — summarize old conversation to free up context',
   '/model <id> — switch model (no argument: show the current model)',
   '/exit — quit snitch (also: exit, quit, q, Ctrl+D)',
 ].join('\n');
@@ -82,6 +85,7 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
   const busyRef = useRef(false);
   const queueRef = useRef<string[]>([]);
   const [queued, setQueued] = useState<string[]>([]); // render copy of queueRef
+  const [planMode, setPlanMode] = useState(false);
 
   const push = (item: TranscriptItem) => setItems((current) => [...current, item]);
 
@@ -98,6 +102,39 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
         setGeneration((g) => g + 1);
         setTotals({ promptTokens: 0, completionTokens: 0, cost: 0 });
         break;
+      case '/plan':
+        setPlanMode((on) => {
+          push({
+            kind: 'info',
+            text: on
+              ? 'plan mode off — full toolset restored'
+              : 'plan mode on — read-only tools only; the agent will propose a plan instead of making changes',
+          });
+          return !on;
+        });
+        break;
+      case '/compact': {
+        busyRef.current = true; // tasks typed during compaction queue instead of racing it
+        setMode('working');
+        setStatus('compacting history');
+        void (async () => {
+          try {
+            const summary = await compactHistory(provider, historyRef.current);
+            push({
+              kind: 'info',
+              text: summary
+                ? `history compacted (now ~${historyRef.current.estimate()} tokens)`
+                : 'nothing to compact yet',
+            });
+          } catch (error) {
+            push({ kind: 'info', text: `compaction failed: ${error instanceof Error ? error.message : String(error)}` });
+          }
+          setStatus(null);
+          busyRef.current = false;
+          setMode('input');
+        })();
+        break;
+      }
       case '/model':
         if (argument) {
           setModel(argument);
@@ -136,11 +173,25 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
 
     const controller = new AbortController();
     abortRef.current = controller;
+    const message = planMode
+      ? `${task}\n\n[Plan mode is on: you only have read-only tools this turn. Investigate as needed, then present a concrete step-by-step plan. Do not attempt changes.]`
+      : task;
 
     void (async () => {
-      const events = runAgent(task, {
+      if (historyRef.current.estimate() > config.tokenBudget * 0.8) {
+        setStatus('auto-compacting history');
+        try {
+          await compactHistory(provider, historyRef.current, controller.signal);
+          push({ kind: 'info', text: `history auto-compacted (now ~${historyRef.current.estimate()} tokens)` });
+        } catch {
+          // toMessages() trimming still protects the budget if compaction fails
+        }
+        setStatus(null);
+      }
+
+      const events = runAgent(message, {
         provider,
-        registry,
+        registry: planMode ? registry.readOnlyView() : registry,
         history: historyRef.current,
         cwd,
         maxIterations: config.maxIterations,
@@ -258,7 +309,7 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
           placeholder={mode === 'working' ? 'type to queue the next task…' : 'describe a task…'}
         />
       </Box>
-      <StatusBar model={provider.model} mode={mode} totals={totals} status={status} />
+      <StatusBar model={provider.model} mode={mode} totals={totals} status={status} planMode={planMode} />
     </Box>
   );
 }
