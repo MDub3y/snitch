@@ -2,7 +2,11 @@
 
 > Newest first. Each entry: what was decided, why, and what was rejected.
 
-## 2026-09-03 — run_command prefers Git Bash on Windows
+## 2026-09-03 — task tool: one-level sub-agents, approval at the spawn
+
+**Decided**: `task(description, prompt)` runs a fresh agent loop (empty History, same system prompt, fresh default registry) to completion and returns its final text. The sub-agent auto-approves its own tool calls; instead, `task` itself is approval-gated and its preview shows the sub-agent's prompt plus a warning. Recursion is impossible by construction: `task` is registered on top of `createDefaultRegistry()` by the entry points, and sub-agents get a plain default registry. The file lives in `src/agent/` because it depends on the loop.
+**Why**: Delegation keeps big exploratory work out of the parent's context. Per-call approvals inside a sub-agent would defeat the point and double-prompt the human, so trust is granted once, at the spawn, with the prompt visible. `getProvider` is a callback so a mid-session /model switch reaches sub-agents.
+**Rejected**: registering `task` in the default registry with a depth counter (implicit recursion limits are easier to get wrong than absence); read-only classification (a sub-agent can write files and run commands — the gate must be at the spawn); forwarding sub-agent usage into the parent's token tally (deferred; totals currently undercount sub-agent work).
 
 **Decided**: `resolveShell()` picks the shell once: Git Bash (`Git\bin\bash.exe` under ProgramFiles/LOCALAPPDATA) when installed on Windows, cmd.exe otherwise, platform `sh` elsewhere. The chosen shell's name is injected into the system prompt so the model writes the right dialect.
 **Why**: A consistent POSIX dialect across platforms means the model never has to reason about cmd quirks; small models especially emit bash-isms regardless. Verified live: `&&` chains and coreutils work on Windows through Git Bash.

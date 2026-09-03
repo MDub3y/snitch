@@ -3,6 +3,7 @@ import { Box, Text, useApp, useInput } from 'ink';
 import { History } from '../agent/history.js';
 import { runAgent, type UsageTotals } from '../agent/loop.js';
 import { buildSystemPrompt } from '../agent/prompts.js';
+import { createTaskTool } from '../agent/taskTool.js';
 import type { SnitchConfig } from '../config.js';
 import { requireApiKey } from '../config.js';
 import { OpenRouterProvider } from '../llm/openrouter.js';
@@ -54,7 +55,20 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
     const openRouter = new OpenRouterProvider({ apiKey: requireApiKey(config), model, baseUrl: config.baseUrl });
     return config.promptTools ? new PromptToolAdapter(openRouter) : openRouter;
   }, [injectedProvider, config, model]);
-  const registry = useMemo(() => injectedRegistry ?? createDefaultRegistry(), [injectedRegistry]);
+  const providerRef = useRef(provider);
+  providerRef.current = provider; // keep sub-agents on the current /model choice
+  const registry = useMemo(() => {
+    if (injectedRegistry) return injectedRegistry;
+    const base = createDefaultRegistry();
+    base.register(
+      createTaskTool({
+        getProvider: () => providerRef.current,
+        maxIterations: config.maxIterations,
+        tokenBudget: config.tokenBudget,
+      }),
+    );
+    return base;
+  }, [injectedRegistry, config]);
   const historyRef = useRef(new History(buildSystemPrompt(cwd)));
   const abortRef = useRef<AbortController | null>(null);
 

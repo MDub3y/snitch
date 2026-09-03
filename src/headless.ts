@@ -2,6 +2,7 @@ import readline from 'node:readline/promises';
 import { History } from './agent/history.js';
 import { runAgent } from './agent/loop.js';
 import { buildSystemPrompt } from './agent/prompts.js';
+import { createTaskTool } from './agent/taskTool.js';
 import type { SnitchConfig } from './config.js';
 import { requireApiKey } from './config.js';
 import { OpenRouterProvider } from './llm/openrouter.js';
@@ -34,9 +35,13 @@ export async function runHeadless(prompt: string, config: SnitchConfig, options:
 
   let exitCode = 0;
   try {
+    const registry = createDefaultRegistry();
+    registry.register(
+      createTaskTool({ getProvider: () => provider, maxIterations: config.maxIterations, tokenBudget: config.tokenBudget }),
+    );
     const events = runAgent(prompt, {
       provider,
-      registry: createDefaultRegistry(),
+      registry,
       history: new History(buildSystemPrompt(cwd)),
       cwd,
       maxIterations: config.maxIterations,

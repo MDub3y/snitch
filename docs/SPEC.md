@@ -59,6 +59,9 @@ tests/               # vitest: per-tool, SSE fixtures, FakeProvider loop tests
 | `grep` | `pattern`, `path?`, `glob?`, `max_results?` (pure TS, `file:line:` output) | No |
 | `run_command` | `command`, `cwd?`, `timeout_ms?` (60s default; exit code + 30KB-capped output) | **Yes** |
 | `todo_write` | `todos` (list of `{content, status}`; status `pending` / `in_progress` / `done`; replaces the whole list, in-memory per session, rendered back as a checklist) | No |
+| `task` | `description`, `prompt` — spawns a fresh sub-agent loop (new History, same system prompt, fresh default registry WITHOUT `task`, so no recursion) that runs to completion with its tool calls auto-approved; returns the sub-agent's final reply | **Yes** |
+
+`task` lives in `src/agent/taskTool.ts` (it depends on the loop, so it sits in the agent layer, not `tools/`) and is registered by the TUI/headless entry points on top of `createDefaultRegistry()` — which is exactly why sub-agents, built from the default registry, cannot spawn further sub-agents. The approval preview warns that everything inside runs unprompted; Esc/cancel propagates into the sub-agent via the shared AbortSignal.
 
 No `finish` tool: with native tool calling, `finish_reason: "stop"` ends the turn; the prompt-fallback adapter treats "no tool-call block parsed" as done. Deferred to later versions: `fetch_url`, `multi_edit`.
 
