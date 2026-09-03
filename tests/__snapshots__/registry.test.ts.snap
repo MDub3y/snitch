@@ -224,5 +224,24 @@ exports[`ToolRegistry > serializes to the OpenAI tools wire format 1`] = `
     },
     "type": "function",
   },
+  {
+    "function": {
+      "description": "HTTP GET a URL and return its content as readable text (HTML is stripped to text, truncated to a few thousand characters). Use full URLs including the scheme.",
+      "name": "fetch_url",
+      "parameters": {
+        "properties": {
+          "url": {
+            "description": "The http(s) URL to fetch",
+            "type": "string",
+          },
+        },
+        "required": [
+          "url",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
 ]
 `;
