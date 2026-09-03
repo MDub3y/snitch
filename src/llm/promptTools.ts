@@ -1,6 +1,11 @@
 import type { ChatMessage, ChatOptions, LLMProvider, StreamEvent, ToolSpec, WireToolCall } from './types.js';
 
 const CALL_FENCE = /```tool_call\s*\n([\s\S]*?)```/g;
+// Some models ignore the fenced-JSON instruction and emit their trained
+// tool-call markup instead (observed live with poolside/laguna-s-2.1):
+// <tool_call>name<arg_key>k</arg_key><arg_value>v</arg_value>...</tool_call>
+const CALL_XML = /<tool_call>\s*([\w./:-]+)([\s\S]*?)<\/tool_call>/g;
+const XML_ARG = /<arg_key>([\s\S]*?)<\/arg_key>\s*<arg_value>([\s\S]*?)<\/arg_value>/g;
 
 function toolInstructions(tools: ToolSpec[]): string {
   const docs = tools
@@ -40,24 +45,42 @@ function flatten(messages: ChatMessage[], tools: ToolSpec[]): ChatMessage[] {
   });
 }
 
-/** Lenient extraction: fenced tool_call blocks parsed into WireToolCalls. */
+/**
+ * Lenient extraction: fenced tool_call blocks (our documented format) and
+ * XML-style <tool_call> markup (what some models emit anyway) both become
+ * WireToolCalls.
+ */
 export function extractToolCalls(text: string): { cleanText: string; calls: WireToolCall[] } {
   const calls: WireToolCall[] = [];
   let counter = 0;
+  const push = (name: string, args: string) =>
+    calls.push({
+      id: `pcall_${++counter}_${Date.now()}`,
+      type: 'function',
+      function: { name, arguments: args },
+    });
+
   const cleanText = text
     .replace(CALL_FENCE, (whole, body: string) => {
       try {
         const parsed = JSON.parse(body.trim()) as { name?: unknown; arguments?: unknown };
         if (typeof parsed.name !== 'string') return whole;
-        calls.push({
-          id: `pcall_${++counter}_${Date.now()}`,
-          type: 'function',
-          function: { name: parsed.name, arguments: JSON.stringify(parsed.arguments ?? {}) },
-        });
+        push(parsed.name, JSON.stringify(parsed.arguments ?? {}));
         return '';
       } catch {
         return whole; // leave unparseable blocks visible in the text
       }
+    })
+    .replace(CALL_XML, (_whole, name: string, argsBody: string) => {
+      const args: Record<string, unknown> = {};
+      for (const [, key, value] of argsBody.matchAll(XML_ARG)) {
+        // Coerce only unambiguous scalars; anything else stays a verbatim string
+        // so file content that happens to look like JSON is never mangled.
+        const scalar = /^(true|false|null|-?\d+(\.\d+)?)$/.test(value!.trim());
+        args[key!.trim()] = scalar ? JSON.parse(value!.trim()) : value!;
+      }
+      push(name, JSON.stringify(args));
+      return '';
     })
     .trim();
   return { cleanText, calls };

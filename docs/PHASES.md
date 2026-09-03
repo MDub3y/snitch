@@ -2,7 +2,14 @@
 
 > A phase is **done** only when: acceptance criteria met, tests green, its checkbox below is ticked with a completion date, and [SPEC.md](SPEC.md) / [DECISIONS.md](DECISIONS.md) reflect anything the phase changed or decided.
 
-**Pending live verification (blocked on the OpenRouter API key):** `snitch --headless "say hi"` streaming smoke test (Phase 2), `snitch --headless "create hello.py and run it"` live E2E (Phase 4), a full interactive TUI session incl. Esc-cancel mid-stream (Phase 5), and `--prompt-tools` against the real model (Phase 6). Everything else is covered by the 62-test suite (FakeProvider + SSE fixtures).
+**Live verification (2026-09-03, real API key, `poolside/laguna-s-2.1:free`):**
+
+- [x] Phase 2 smoke test: `snitch --headless "say hi"` streamed a reply; free-tier 429s absorbed by the Retry-After backoff (3 retries observed, then success).
+- [x] Phase 4 E2E: `snitch --headless --yes "create hello.py ... and run it with python"` — native tool calling confirmed live; well-formed `write_file` and `run_command` args; correct final summary.
+- [x] Phase 6 `--prompt-tools` E2E: same scenario completes via the fallback adapter. Live run surfaced that Laguna emits XML-style `<tool_call>` markup instead of the instructed fenced JSON; `extractToolCalls` now parses both (see DECISIONS 2026-09-03).
+- [ ] Phase 5 interactive TUI session in Windows Terminal (Esc-cancel mid-stream, Ctrl+C restore) — must be driven by a human at a real TTY.
+
+Fix that came out of live testing: piped/EOF stdin crashed headless approvals (`ERR_USE_AFTER_CLOSE`); added `--yes` auto-approve flag and closed-stdin-means-deny handling. Suite is now 64 tests.
 
 - [x] **Phase 1 — Scaffold + Ink hello world + docs skeleton** (completed 2026-09-02)
   - Prerequisites: none (empty repo; Node ≥ 22 installed)

@@ -41,7 +41,7 @@ The loop is an async generator of `AgentEvent`s and knows nothing about renderin
 ```sh
 npm install
 npm run dev        # run the TUI from source
-npm test           # run the vitest suite (62 tests)
+npm test           # run the vitest suite (64 tests)
 npm run build      # compile to dist/
 npm link           # make the `snitch` command available globally
 ```
@@ -51,6 +51,7 @@ npm link           # make the `snitch` command available globally
 ```sh
 snitch                                 # interactive TUI
 snitch --headless "create hello.py and run it"   # one-shot task, y/n prompts on stdin
+snitch --headless --yes "..."          # one-shot task, auto-approve tool calls (for scripts/pipes)
 snitch --model poolside/laguna-s-2.1   # override the model for this run
 snitch --prompt-tools                  # prompt-based tool calling for models without native support
 ```
@@ -69,4 +70,4 @@ Slash commands: `/help`, `/clear` (reset conversation), `/model <id>` (switch mo
 
 ## Project status
 
-v1 complete: all 6 development phases are implemented and tested (see [docs/PHASES.md](docs/PHASES.md)). Live verification against the real model is listed there as pending an API key; everything else is covered by the test suite (FakeProvider + SSE fixtures — no key needed).
+v1 complete: all 6 development phases are implemented and tested (see [docs/PHASES.md](docs/PHASES.md)). Verified live against `poolside/laguna-s-2.1:free` on 2026-09-03: headless streaming, the tool-calling E2E, and the `--prompt-tools` fallback all pass; free-tier rate limits are absorbed by the retry backoff. The interactive TUI session is the one check that needs a human at a real terminal.

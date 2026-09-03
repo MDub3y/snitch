@@ -13,7 +13,12 @@ import { createDefaultRegistry } from './tools/registry.js';
  * streamed output on stdout, status on stderr. The Ink TUI (Phase 5) consumes
  * the same AgentEvent stream.
  */
-export async function runHeadless(prompt: string, config: SnitchConfig): Promise<void> {
+export interface HeadlessOptions {
+  /** Auto-approve every tool call (--yes). For scripted/piped runs where stdin cannot answer prompts. */
+  yes?: boolean;
+}
+
+export async function runHeadless(prompt: string, config: SnitchConfig, options: HeadlessOptions = {}): Promise<void> {
   const cwd = process.cwd();
   const openRouter = new OpenRouterProvider({
     apiKey: requireApiKey(config),
@@ -53,7 +58,18 @@ export async function runHeadless(prompt: string, config: SnitchConfig): Promise
           process.stderr.write(`\n[tool] ${event.call.name} ${event.call.rawArguments.slice(0, 200)}\n`);
           break;
         case 'approval_required': {
-          const answer = await rl.question(`${event.preview}\napprove? [y/N] `);
+          if (options.yes) {
+            process.stderr.write(`${event.preview}\n[snitch] auto-approved (--yes)\n`);
+            event.respond(true);
+            break;
+          }
+          let answer = '';
+          try {
+            answer = await rl.question(`${event.preview}\napprove? [y/N] `);
+          } catch {
+            // stdin ended (piped input exhausted) — readline is closed; deny instead of crashing
+            process.stderr.write('[snitch] stdin closed, denying tool call (use --yes to auto-approve)\n');
+          }
           event.respond(/^y(es)?$/i.test(answer.trim()));
           break;
         }

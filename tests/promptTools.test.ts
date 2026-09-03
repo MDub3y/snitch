@@ -33,6 +33,32 @@ describe('extractToolCalls', () => {
     expect(cleanText).toBe('just an answer');
     expect(calls).toHaveLength(0);
   });
+
+  it('parses XML-style tool_call markup as emitted live by laguna', () => {
+    const { cleanText, calls } = extractToolCalls(
+      "<tool_call>write_file<arg_key>path</arg_key><arg_value>hello.py</arg_value>" +
+        "<arg_key>content</arg_key><arg_value>print('hello from snitch')\n</arg_value></tool_call>",
+    );
+    expect(cleanText).toBe('');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.function.name).toBe('write_file');
+    expect(JSON.parse(calls[0]!.function.arguments)).toEqual({
+      path: 'hello.py',
+      content: "print('hello from snitch')\n",
+    });
+  });
+
+  it('coerces scalar XML arg values but keeps JSON-looking strings verbatim', () => {
+    const { calls } = extractToolCalls(
+      '<tool_call>read_file<arg_key>path</arg_key><arg_value>a.txt</arg_value>' +
+        '<arg_key>limit</arg_key><arg_value>50</arg_value></tool_call>' +
+        '<tool_call>write_file<arg_key>path</arg_key><arg_value>data.json</arg_value>' +
+        '<arg_key>content</arg_key><arg_value>{"a": 1}</arg_value></tool_call>',
+    );
+    expect(calls).toHaveLength(2);
+    expect(JSON.parse(calls[0]!.function.arguments)).toEqual({ path: 'a.txt', limit: 50 });
+    expect(JSON.parse(calls[1]!.function.arguments)).toEqual({ path: 'data.json', content: '{"a": 1}' });
+  });
 });
 
 describe('PromptToolAdapter', () => {

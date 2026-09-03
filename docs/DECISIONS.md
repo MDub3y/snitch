@@ -2,6 +2,18 @@
 
 > Newest first. Each entry: what was decided, why, and what was rejected.
 
+## 2026-09-03 — Prompt-tools extractor also parses XML-style tool_call markup
+
+**Decided**: `extractToolCalls` accepts both the instructed fenced-JSON blocks and `<tool_call>name<arg_key>k</arg_key><arg_value>v</arg_value></tool_call>` markup. XML arg values are coerced to numbers/booleans only when the whole value is an unambiguous scalar; everything else stays a verbatim string.
+**Why**: First live `--prompt-tools` run showed Laguna ignores the fenced-JSON instruction and emits its trained XML format, so the fallback silently did nothing. Scalar-only coercion prevents mangling file content that happens to look like JSON.
+**Rejected**: Prompt engineering alone (the trained format wins over instructions); blanket `JSON.parse` on arg values (would corrupt JSON-looking string content).
+
+## 2026-09-03 — Headless --yes flag; closed stdin denies instead of crashing
+
+**Decided**: `--yes`/`-y` auto-approves every tool call in headless mode; if stdin has ended when an approval prompt fires, the call is denied with a hint instead of throwing.
+**Why**: Live E2E via piped stdin crashed with `ERR_USE_AFTER_CLOSE` — piped input EOFs before the model finishes streaming, closing readline before the first `question()`. Scripted runs need a non-interactive approval path.
+**Rejected**: Re-buffering piped answers ourselves (fragile ordering against streamed prompts); auto-approving on EOF (unsafe default).
+
 ## 2026-09-02 — Prompt-tools fallback flattens tool messages to user text
 
 **Decided**: `PromptToolAdapter` buffers each reply (no live deltas), extracts fenced ` ```tool_call ` JSON blocks as tool calls, rewrites assistant tool_calls into the same fenced form, and converts `role: "tool"` results into `[tool result]` user messages.
