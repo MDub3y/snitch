@@ -183,5 +183,46 @@ exports[`ToolRegistry > serializes to the OpenAI tools wire format 1`] = `
     },
     "type": "function",
   },
+  {
+    "function": {
+      "description": "Replace your todo list for the current task. Use it to plan any task with more than a couple of steps, and update statuses as you work. Returns the rendered checklist.",
+      "name": "todo_write",
+      "parameters": {
+        "properties": {
+          "todos": {
+            "description": "The full new todo list (replaces the previous one)",
+            "items": {
+              "properties": {
+                "content": {
+                  "description": "What this step is",
+                  "type": "string",
+                },
+                "status": {
+                  "description": "Current state of this step",
+                  "enum": [
+                    "pending",
+                    "in_progress",
+                    "done",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "content",
+                "status",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "todos",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
 ]
 `;

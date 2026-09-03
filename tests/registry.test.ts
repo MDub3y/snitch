@@ -4,7 +4,7 @@ import { createDefaultRegistry } from '../src/tools/registry.js';
 describe('ToolRegistry', () => {
   const registry = createDefaultRegistry();
 
-  it('registers the 7 v1 tools with the right approval gates', () => {
+  it('registers the 8 v1 tools with the right approval gates', () => {
     expect(registry.names()).toEqual([
       'read_file',
       'write_file',
@@ -13,6 +13,7 @@ describe('ToolRegistry', () => {
       'glob',
       'grep',
       'run_command',
+      'todo_write',
     ]);
     const needsApproval = registry.names().filter((name) => registry.get(name)!.requiresApproval);
     expect(needsApproval).toEqual(['write_file', 'edit_file', 'run_command']);

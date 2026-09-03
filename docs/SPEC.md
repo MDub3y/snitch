@@ -58,8 +58,9 @@ tests/               # vitest: per-tool, SSE fixtures, FakeProvider loop tests
 | `glob` | `pattern`, `path?` (tinyglobby; ignores node_modules/.git; mtime-sorted; ~200 cap) | No |
 | `grep` | `pattern`, `path?`, `glob?`, `max_results?` (pure TS, `file:line:` output) | No |
 | `run_command` | `command`, `cwd?`, `timeout_ms?` (60s default; exit code + 30KB-capped output) | **Yes** |
+| `todo_write` | `todos` (list of `{content, status}`; status `pending` / `in_progress` / `done`; replaces the whole list, in-memory per session, rendered back as a checklist) | No |
 
-No `finish` tool: with native tool calling, `finish_reason: "stop"` ends the turn; the prompt-fallback adapter treats "no tool-call block parsed" as done. Deferred to later versions: `fetch_url`, `multi_edit`, todo tracking.
+No `finish` tool: with native tool calling, `finish_reason: "stop"` ends the turn; the prompt-fallback adapter treats "no tool-call block parsed" as done. Deferred to later versions: `fetch_url`, `multi_edit`.
 
 Registry pattern: `Tool = { name, description, paramsSchema (JSON Schema), requiresApproval, execute(args, ctx) }`, serialized to the OpenAI `tools` wire format by `tools/registry.ts`.
 
