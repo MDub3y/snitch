@@ -94,6 +94,17 @@ describe('App', () => {
     r.unmount();
   });
 
+  it('treats bare exit words as quit, not as a task for the model', async () => {
+    const provider = new FakeProvider([textTurn('should never be sent')]);
+    const r = renderApp(provider);
+    await type(r, 'exit', '\r');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(provider.seenMessages).toHaveLength(0); // nothing went to the model
+    expect(frame(r)).not.toContain('> exit'); // not recorded as a user task
+    r.unmount();
+  });
+
   it('handles /help and unknown slash commands', async () => {
     const r = renderApp(new FakeProvider([]));
     await type(r, '/help', '\r');

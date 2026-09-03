@@ -39,8 +39,11 @@ const HELP_TEXT = [
   '/help — show this list',
   '/clear — reset the conversation and transcript',
   '/model <id> — switch model (no argument: show the current model)',
-  '/exit — quit snitch',
+  '/exit — quit snitch (also: exit, quit, q, Ctrl+D)',
 ].join('\n');
+
+/** Bare words every terminal tool is expected to honor instead of treating as a task. */
+const EXIT_WORDS = new Set(['exit', 'quit', 'q', ':q']);
 
 export function App({ config, provider: injectedProvider, registry: injectedRegistry, cwd: injectedCwd }: AppProps) {
   const cwd = injectedCwd ?? process.cwd();
@@ -95,6 +98,10 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
   };
 
   const submit = (task: string) => {
+    if (EXIT_WORDS.has(task.toLowerCase())) {
+      exit();
+      return;
+    }
     if (task.startsWith('/')) {
       runSlashCommand(task);
       return;
@@ -182,6 +189,14 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
       if (key.escape) abortRef.current?.abort();
     },
     { isActive: mode === 'working' },
+  );
+
+  // Ctrl+D at the prompt = EOF = quit, the universal terminal convention.
+  useInput(
+    (input, key) => {
+      if (key.ctrl && input === 'd') exit();
+    },
+    { isActive: mode === 'input' },
   );
 
   return (

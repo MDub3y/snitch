@@ -41,7 +41,7 @@ tests/               # vitest: per-tool, SSE fixtures, FakeProvider loop tests
 
 ### TUI layout
 
-`<Static>` transcript (past messages + resolved tool cards, flicker-free) → live streaming tail → active ToolCallCard `[y]/[n]` → InputBox → StatusBar (model, spinner, token/cost tally). One app-level mode (`input | working | approval`) decides whose `useInput` is live; Esc triggers an `AbortController`. Slash commands: `/help`, `/clear` (new History + `<Static>` remount via a generation key), `/model <id>` (rebuilds the provider), `/exit`.
+`<Static>` transcript (past messages + resolved tool cards, flicker-free) → live streaming tail → active ToolCallCard `[y]/[n]` → InputBox → StatusBar (model, spinner, token/cost tally). One app-level mode (`input | working | approval`) decides whose `useInput` is live; Esc triggers an `AbortController`. Slash commands: `/help`, `/clear` (new History + `<Static>` remount via a generation key), `/model <id>` (rebuilds the provider), `/exit`. Standard terminal exits are honored too: bare `exit`/`quit`/`q`/`:q` at the prompt and Ctrl+D (EOF) quit instead of being sent to the model.
 
 ### CLI
 
