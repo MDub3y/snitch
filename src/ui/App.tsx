@@ -163,6 +163,7 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
 
       setStreamText('');
       setActiveTool(null);
+      setStatus(null); // a run that ends mid-retry must not leave a stale retry message
       abortRef.current = null;
       setMode('input');
     })();

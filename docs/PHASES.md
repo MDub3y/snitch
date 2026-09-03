@@ -7,7 +7,7 @@
 - [x] Phase 2 smoke test: `snitch --headless "say hi"` streamed a reply; free-tier 429s absorbed by the Retry-After backoff (3 retries observed, then success).
 - [x] Phase 4 E2E: `snitch --headless --yes "create hello.py ... and run it with python"` — native tool calling confirmed live; well-formed `write_file` and `run_command` args; correct final summary.
 - [x] Phase 6 `--prompt-tools` E2E: same scenario completes via the fallback adapter. Live run surfaced that Laguna emits XML-style `<tool_call>` markup instead of the instructed fenced JSON; `extractToolCalls` now parses both (see DECISIONS 2026-09-03).
-- [ ] Phase 5 interactive TUI session in Windows Terminal (Esc-cancel mid-stream, Ctrl+C restore) — must be driven by a human at a real TTY.
+- [x] Phase 5 interactive TUI session in Windows Terminal (verified 2026-09-03): streamed reply rendered, upstream 429 exhaustion surfaced as a clean transcript error with return to ready. Found and fixed: status bar kept a stale "retry 3/4" message after the run ended (cleared in end-of-run cleanup). Esc-cancel and Ctrl+C restore still worth a spot-check when the free tier cooperates.
 
 Fix that came out of live testing: piped/EOF stdin crashed headless approvals (`ERR_USE_AFTER_CLOSE`); added `--yes` auto-approve flag and closed-stdin-means-deny handling. Suite is now 64 tests.
 
