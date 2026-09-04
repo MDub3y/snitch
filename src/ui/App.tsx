@@ -11,6 +11,7 @@ import { OpenRouterProvider } from '../llm/openrouter.js';
 import { PromptToolAdapter } from '../llm/promptTools.js';
 import type { LLMProvider } from '../llm/types.js';
 import { createDefaultRegistry, type ToolRegistry } from '../tools/registry.js';
+import { AnimatedBanner } from './Banner.js';
 import { InputBox } from './InputBox.js';
 import { StatusBar } from './StatusBar.js';
 import { ItemView, Transcript, type TranscriptItem } from './Transcript.js';
@@ -86,6 +87,14 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
   const queueRef = useRef<string[]>([]);
   const [queued, setQueued] = useState<string[]>([]); // render copy of queueRef
   const [planMode, setPlanMode] = useState(false);
+  const [bannerDone, setBannerDone] = useState(false);
+
+  // When the unfurl finishes, commit the full-span banner as the first
+  // <Static> item so it stays pinned to the top of the scrollback.
+  const finishBanner = () => {
+    setBannerDone(true);
+    setItems((current) => [{ kind: 'banner' }, ...current]);
+  };
 
   const push = (item: TranscriptItem) => setItems((current) => [...current, item]);
 
@@ -98,7 +107,7 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
         break;
       case '/clear':
         historyRef.current = new History(buildSystemPrompt(cwd));
-        setItems([]);
+        setItems(bannerDone ? [{ kind: 'banner' }] : []);
         setGeneration((g) => g + 1);
         setTotals({ promptTokens: 0, completionTokens: 0, cost: 0 });
         break;
@@ -287,6 +296,7 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
 
   return (
     <Box flexDirection="column">
+      {!bannerDone ? <AnimatedBanner onDone={finishBanner} /> : null}
       <Transcript key={generation} items={items} />
       {streamText ? <ItemView item={{ kind: 'assistant', text: streamText }} /> : null}
       {activeTool ? (

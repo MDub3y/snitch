@@ -1,7 +1,9 @@
 import React from 'react';
 import { Box, Static, Text } from 'ink';
+import { BannerArt } from './Banner.js';
 
 export type TranscriptItem =
+  | { kind: 'banner' }
   | { kind: 'user'; text: string }
   | { kind: 'assistant'; text: string }
   | { kind: 'tool'; name: string; summary: string; status: 'ok' | 'denied' | 'error' }
@@ -9,6 +11,8 @@ export type TranscriptItem =
 
 export function ItemView({ item }: { item: TranscriptItem }) {
   switch (item.kind) {
+    case 'banner':
+      return <BannerArt />;
     case 'user':
       return (
         <Box marginTop={1}>

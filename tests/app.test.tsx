@@ -42,6 +42,17 @@ async function type(r: { stdin: { write: (s: string) => void } }, ...inputs: str
 }
 
 describe('App', () => {
+  it('animates the snitch banner to full span and keeps it after /clear', async () => {
+    const r = renderApp(new FakeProvider([]));
+    expect(frame(r)).toContain('S  N  I  T  C  H'); // wordmark from frame one
+    // full wing span appears once the unfurl finishes (~1s)
+    await vi.waitFor(() => expect(frame(r)).toContain(',g$$g,_'), { timeout: 3000 });
+
+    await type(r, '/clear', '\r');
+    await vi.waitFor(() => expect(frame(r)).toContain(',g$$g,_'));
+    r.unmount();
+  });
+
   it('renders the input prompt and status bar', () => {
     const r = renderApp(new FakeProvider([]));
     expect(frame(r)).toContain('describe a task…');
