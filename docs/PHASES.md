@@ -59,7 +59,7 @@ Fix that came out of live testing: piped/EOF stdin crashed headless approvals (`
 
 > Spec: the v2 README (branch `v2`). v2 adds two modules (`security/`, `memory/`) and a second auth path; the coding agent from v1 is untouched and remains fully usable with neither invoked. Already shipped before v2 and NOT re-listed below: `--yes`, `--plan`, `/plan`, `/compact`, SNITCH.md injection.
 
-- [ ] **Phase 7 — Auth & providers: subscription + direct BYOK**
+- [x] **Phase 7 — Auth & providers: subscription + direct BYOK** (completed 2026-10-01; live subscription smoke test pending a logged-in Claude plan — all other acceptance criteria met, 130 tests green)
   - Prerequisites: Phase 6 (v1 complete)
   - Scope: a `SubscriptionProvider` behind the existing `LLMProvider` contract, calling the Claude Agent SDK with `allowedTools: []` and reading the final message; `AnthropicProvider` (Messages API); OpenAI direct via the existing OpenAI-compat path with `baseUrl` routing; auth resolution in `config.ts` (`CLAUDE_CODE_OAUTH_TOKEN` → subscription, else `SNITCH_API_KEY`/`OPENROUTER_API_KEY`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`); key redaction in all error/trace output
   - Acceptance:

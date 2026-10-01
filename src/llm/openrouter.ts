@@ -67,6 +67,11 @@ export interface OpenRouterProviderOptions {
   apiKey: string;
   model: string;
   baseUrl?: string;
+  /**
+   * Wire dialect. OpenRouter accepts `usage: {include}` and custom headers;
+   * plain OpenAI rejects unknown params and wants `stream_options` instead.
+   */
+  flavor?: 'openrouter' | 'openai';
 }
 
 export class OpenRouterProvider implements LLMProvider {
@@ -74,11 +79,17 @@ export class OpenRouterProvider implements LLMProvider {
   readonly capabilities = { nativeTools: true, streaming: true };
   private readonly apiKey: string;
   private readonly baseUrl: string;
+  private readonly flavor: 'openrouter' | 'openai';
 
   constructor(options: OpenRouterProviderOptions) {
     this.apiKey = options.apiKey;
     this.model = options.model;
+    this.flavor = options.flavor ?? 'openrouter';
     this.baseUrl = options.baseUrl ?? 'https://openrouter.ai/api/v1';
+  }
+
+  private get label(): string {
+    return this.flavor === 'openai' ? 'OpenAI' : 'OpenRouter';
   }
 
   async *chat(options: ChatOptions): AsyncIterable<StreamEvent> {
@@ -89,14 +100,16 @@ export class OpenRouterProvider implements LLMProvider {
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
-            'X-Title': 'Snitch',
+            ...(this.flavor === 'openrouter' ? { 'X-Title': 'Snitch' } : {}),
           },
           body: JSON.stringify({
             model: this.model,
             messages: options.messages,
             ...(options.tools?.length ? { tools: options.tools } : {}),
             stream: true,
-            usage: { include: true },
+            ...(this.flavor === 'openrouter'
+              ? { usage: { include: true } }
+              : { stream_options: { include_usage: true } }),
           }),
           signal: options.signal,
         }),
@@ -106,11 +119,12 @@ export class OpenRouterProvider implements LLMProvider {
     if (!response.ok) {
       const body = await response.text().catch(() => '');
       if (response.status === 401) {
-        throw new ApiError(401, 'OpenRouter rejected the API key (401). Check SNITCH_API_KEY / OPENROUTER_API_KEY.');
+        const hint = this.flavor === 'openai' ? 'OPENAI_API_KEY' : 'SNITCH_API_KEY / OPENROUTER_API_KEY';
+        throw new ApiError(401, `${this.label} rejected the API key (401). Check ${hint}.`);
       }
-      throw new ApiError(response.status, `OpenRouter error ${response.status}${body ? `: ${body.slice(0, 300)}` : ''}`);
+      throw new ApiError(response.status, `${this.label} error ${response.status}${body ? `: ${body.slice(0, 300)}` : ''}`);
     }
-    if (!response.body) throw new SnitchError('OpenRouter returned an empty response body.');
+    if (!response.body) throw new SnitchError(`${this.label} returned an empty response body.`);
 
     yield* this.parseChunks(response.body);
   }
@@ -127,7 +141,7 @@ export class OpenRouterProvider implements LLMProvider {
         continue; // tolerate malformed keep-alive noise
       }
       if (chunk.error?.message) {
-        throw new ApiError(chunk.error.code ?? 0, `OpenRouter mid-stream error: ${chunk.error.message}`);
+        throw new ApiError(chunk.error.code ?? 0, `${this.label} mid-stream error: ${chunk.error.message}`);
       }
 
       const choice = chunk.choices?.[0];

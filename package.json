@@ -24,6 +24,14 @@
     "react": "^19.2.8",
     "tinyglobby": "^0.2.17"
   },
+  "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",

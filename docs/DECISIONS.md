@@ -2,6 +2,18 @@
 
 > Newest first. Each entry: what was decided, why, and what was rejected.
 
+## 2026-10-01 — Subscription path rides the Agent SDK behind PromptToolAdapter (Phase 7)
+
+**Decided**: `SubscriptionProvider` implements `LLMProvider` by calling the Claude Agent SDK's `query()` with `allowedTools: []` and `maxTurns: 1`, flattening the full history into one prompt per call and reading back assistant text + result usage. It declares `nativeTools: false`, so `createProvider` always wraps it in the existing `PromptToolAdapter` — snitch's own tools drive the loop via fenced JSON, exactly like any other no-native-tools model. The SDK is an optional peer dependency loaded via dynamic import (variable specifier, so tsc doesn't require its types); a missing install produces an actionable error. `ANTHROPIC_API_KEY` is deleted from the env handed to the SDK, since the SDK silently prefers it over the OAuth token and would bill API credits; a startup warning explains when both are set.
+**Why**: Claude Max users should run snitch with zero API billing. The SDK is the only supported bridge to subscription auth, but it is an agent runner, not a chat API — disabling its tools and single-turning it reduces it to a plain model call that fits the existing provider contract, and the prompt-tools adapter (built in Phase 6 for Laguna) already solves "capable model, no tool API" without new machinery.
+**Rejected**: Making the SDK a hard dependency (BYOK installs shouldn't pull a whole agent runtime); letting the SDK run its own tools (two approval systems and nested agents); erroring when ANTHROPIC_API_KEY coexists with the token (a user with both set for other tools would be blocked; scrub + warn preserves intent).
+
+## 2026-10-01 — One auth resolution, four provider paths, redaction at the error boundary (Phase 7)
+
+**Decided**: `config.ts` resolves credentials once into a `ResolvedAuth` union with fixed priority — subscription token, OpenRouter key, Anthropic key, OpenAI key — and `createProvider` is the single switch mapping auth to provider. OpenAI direct reuses `OpenRouterProvider` with a `flavor: 'openai'` option (dialect differences: `stream_options` vs `usage`, no `X-Title`); Anthropic direct gets a real `AnthropicProvider` because the Messages API is a genuinely different wire format (system param, content blocks, alternating roles, `stop_reason`). Every credential read is registered with `util/redact.ts`, and `SnitchError` scrubs registered secrets at construction.
+**Why**: Priority must be deterministic and documented, not dependent on which code path asks first. Redacting inside the error type covers every surface (TUI, headless stderr, echoed API bodies) without each call site remembering to sanitize — it's a security tool; leaking a key in an error trace is its own vulnerability class.
+**Rejected**: A separate OpenAI provider class (the chat-completions dialects differ by two fields — a flavor flag beats a copy); converting Anthropic through an OpenAI-compat shim (loses native tool_use streaming and clean stop-reason mapping); redacting at print sites only (misses future surfaces by default).
+
 ## 2026-09-03 — Plan mode removes tools instead of asking nicely
 
 **Decided**: `/plan` (TUI) and `--plan` (headless) run the loop against `registry.readOnlyView()` — only no-approval tools exist for that turn — plus a plan-only instruction appended to the task. Toggling shows a `[plan]` status badge.

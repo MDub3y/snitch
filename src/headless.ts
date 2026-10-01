@@ -4,9 +4,7 @@ import { runAgent } from './agent/loop.js';
 import { buildSystemPrompt } from './agent/prompts.js';
 import { createTaskTool } from './agent/taskTool.js';
 import type { SnitchConfig } from './config.js';
-import { requireApiKey } from './config.js';
-import { OpenRouterProvider } from './llm/openrouter.js';
-import { PromptToolAdapter } from './llm/promptTools.js';
+import { createProvider } from './llm/createProvider.js';
 import { createDefaultRegistry } from './tools/registry.js';
 
 /**
@@ -23,12 +21,7 @@ export interface HeadlessOptions {
 
 export async function runHeadless(prompt: string, config: SnitchConfig, options: HeadlessOptions = {}): Promise<void> {
   const cwd = process.cwd();
-  const openRouter = new OpenRouterProvider({
-    apiKey: requireApiKey(config),
-    model: config.model,
-    baseUrl: config.baseUrl,
-  });
-  const provider = config.promptTools ? new PromptToolAdapter(openRouter) : openRouter;
+  const provider = createProvider(config);
   const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
 
   const controller = new AbortController();
@@ -54,7 +47,7 @@ export async function runHeadless(prompt: string, config: SnitchConfig, options:
       tokenBudget: config.tokenBudget,
       signal: controller.signal,
       onRetry: ({ status, attempt, maxAttempts, delayMs }) =>
-        process.stderr.write(`[snitch] ${status} from OpenRouter, retry ${attempt}/${maxAttempts} in ${Math.round(delayMs / 1000)}s...\n`),
+        process.stderr.write(`[snitch] ${status} from the model API, retry ${attempt}/${maxAttempts} in ${Math.round(delayMs / 1000)}s...\n`),
     });
 
     for await (const event of events) {

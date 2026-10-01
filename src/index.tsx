@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import React from 'react';
 import { render } from 'ink';
-import { loadConfig, requireApiKey } from './config.js';
+import { loadConfig, requireAuth } from './config.js';
 import { runHeadless } from './headless.js';
 import { App } from './ui/App.js';
 import { SnitchError } from './util/errors.js';
@@ -40,6 +40,7 @@ function parseArgs(argv: string[]): CliArgs {
 try {
   const args = parseArgs(process.argv.slice(2));
   const config = loadConfig({ model: args.model, promptTools: args.promptTools });
+  for (const warning of config.warnings) process.stderr.write(`[snitch] warning: ${warning}\n`);
 
   if (args.headless) {
     if (!args.prompt) throw new SnitchError('Headless mode needs a prompt: snitch --headless "your task"');
@@ -50,7 +51,7 @@ try {
         'Interactive mode requires a TTY (run inside a terminal such as Windows Terminal), or use --headless "<prompt>".',
       );
     }
-    requireApiKey(config); // fail fast with a clear message before Ink takes over the screen
+    requireAuth(config); // fail fast with a clear message before Ink takes over the screen
     const { waitUntilExit } = render(<App config={config} />);
     await waitUntilExit();
   }

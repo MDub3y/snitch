@@ -6,27 +6,33 @@
 
 A lightweight terminal coding agent in TypeScript: the user types a task, the model plans and calls tools (read/write/edit files, search, run shell commands) in a loop until the task is done, with a human approval gate on anything that mutates the machine. Built in phases, designed so the model/provider, tools, and UI can each evolve independently.
 
-## Model & provider
+## Models & auth (v2)
 
-- Default model: `poolside/laguna-s-2.1:free` via OpenRouter (OpenAI-compatible chat completions).
-  - Supports native tool calling (`tools` / `tool_choice`); 1M context, 131k max output.
-  - Does **not** support `response_format` (no enforced JSON) — relevant to the prompt-based fallback only.
-  - Paid slug `poolside/laguna-s-2.1` ($0.09/M in, $0.18/M out) available if free-tier rate limits bite.
-- OpenRouter streams tool calls over SSE as `tool_calls` deltas with `finish_reason: "tool_calls"`; tool results return as `role: "tool"` messages keyed by `tool_call_id`.
-- Config: `SNITCH_API_KEY` (falls back to `OPENROUTER_API_KEY`), `.env` via `process.loadEnvFile()`, optional `snitch.config.json`, `--model` flag override.
+Credential priority, resolved once in `config.ts` (`ResolvedAuth`), mapped to a provider by `llm/createProvider.ts`:
+
+1. **`CLAUDE_CODE_OAUTH_TOKEN`** → subscription path: `SubscriptionProvider` calls the Claude Agent SDK (optional peer dependency, dynamically imported) with `allowedTools: []` and `maxTurns: 1`, flattening the history into a single prompt — a plain model call billed to a Claude Pro/Max plan. `nativeTools: false`, so it is always wrapped in `PromptToolAdapter`. `ANTHROPIC_API_KEY` is scrubbed from the SDK's env (the SDK silently prefers it and would bill API credits); if both are set a startup warning says so. Default model: `claude-sonnet-4-5`.
+2. **`SNITCH_API_KEY` / `OPENROUTER_API_KEY`** → OpenRouter (OpenAI-compatible chat completions). Default model: `poolside/laguna-s-2.1:free`.
+   - Laguna supports native tool calling (`tools` / `tool_choice`); 1M context, 131k max output; no `response_format` (relevant to the prompt-based fallback only). Paid slug `poolside/laguna-s-2.1` ($0.09/M in, $0.18/M out) if free-tier limits bite.
+3. **`ANTHROPIC_API_KEY`** → `AnthropicProvider` against the Messages API (`anthropic-version: 2023-06-01`, streamed): OpenAI-shaped history converted to system param + `tool_use`/`tool_result` blocks with consecutive same-role turns merged; `stop_reason` mapped back (`tool_use` → `tool_calls`, `max_tokens` → `length`). Default model: `claude-sonnet-4-5`.
+4. **`OPENAI_API_KEY`** → the same OpenAI-compat provider with `flavor: 'openai'`: `stream_options: {include_usage}` instead of OpenRouter's `usage: {include}` param, no `X-Title` header, `api.openai.com` base. Default model: `gpt-4o-mini`.
+
+Key hygiene: every credential read is registered with `util/redact.ts`; `SnitchError` (and thus `ApiError`) scrubs registered secrets from its message at construction, covering every user-facing error path including echoed API response bodies.
+
+- OpenRouter/OpenAI stream tool calls over SSE as `tool_calls` deltas with `finish_reason: "tool_calls"`; tool results return as `role: "tool"` messages keyed by `tool_call_id`.
+- Config sources: environment, `.env` via `process.loadEnvFile()`, optional `snitch.config.json`, `--model` flag override. `loadConfig` also returns `warnings` for the entry point to print.
 
 ## Architecture
 
 ```
 src/
 ├── index.tsx        # entry: flags (--model, --headless, --prompt-tools), boot
-├── config.ts        # key/model/config resolution
-├── llm/    types.ts · openrouter.ts · retry.ts · promptTools.ts
+├── config.ts        # auth resolution (subscription / BYOK priority), model, budgets
+├── llm/    types.ts · createProvider.ts · openrouter.ts · anthropic.ts · subscription.ts · retry.ts · promptTools.ts
 ├── tools/  types.ts · registry.ts · fs.ts · search.ts · shell.ts
 ├── agent/  loop.ts · history.ts · prompts.ts  (system prompt: identity + env block with cwd listing + SNITCH.md project instructions)
 ├── ui/     App.tsx · Transcript.tsx · MessageView.tsx · ToolCallCard.tsx · InputBox.tsx · StatusBar.tsx
 ├── headless.ts      # readline-driven runner (testing + piping)
-└── util/   errors.ts · tokens.ts
+└── util/   errors.ts · tokens.ts · redact.ts
 tests/               # vitest: per-tool, SSE fixtures, FakeProvider loop tests
 ```
 

@@ -6,9 +6,7 @@ import { runAgent, type UsageTotals } from '../agent/loop.js';
 import { buildSystemPrompt } from '../agent/prompts.js';
 import { createTaskTool } from '../agent/taskTool.js';
 import type { SnitchConfig } from '../config.js';
-import { requireApiKey } from '../config.js';
-import { OpenRouterProvider } from '../llm/openrouter.js';
-import { PromptToolAdapter } from '../llm/promptTools.js';
+import { createProvider } from '../llm/createProvider.js';
 import type { LLMProvider } from '../llm/types.js';
 import { createDefaultRegistry, type ToolRegistry } from '../tools/registry.js';
 import { AnimatedBanner } from './Banner.js';
@@ -27,7 +25,7 @@ interface ActiveTool {
 
 export interface AppProps {
   config: SnitchConfig;
-  /** Injectable for tests; defaults to OpenRouter with the configured model. */
+  /** Injectable for tests; defaults to the provider the resolved auth selects. */
   provider?: LLMProvider;
   registry?: ToolRegistry;
   cwd?: string;
@@ -56,8 +54,7 @@ export function App({ config, provider: injectedProvider, registry: injectedRegi
   const [model, setModel] = useState(config.model);
   const provider = useMemo<LLMProvider>(() => {
     if (injectedProvider) return injectedProvider;
-    const openRouter = new OpenRouterProvider({ apiKey: requireApiKey(config), model, baseUrl: config.baseUrl });
-    return config.promptTools ? new PromptToolAdapter(openRouter) : openRouter;
+    return createProvider(config, { model });
   }, [injectedProvider, config, model]);
   const providerRef = useRef(provider);
   providerRef.current = provider; // keep sub-agents on the current /model choice
