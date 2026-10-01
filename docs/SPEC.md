@@ -30,6 +30,7 @@ src/
 ├── llm/    types.ts · createProvider.ts · openrouter.ts · anthropic.ts · subscription.ts · retry.ts · promptTools.ts
 ├── tools/  types.ts · registry.ts · fs.ts · search.ts · shell.ts
 ├── agent/  loop.ts · history.ts · prompts.ts  (system prompt: identity + env block with cwd listing + SNITCH.md project instructions)
+├── security/ types.ts · knowledge.ts · mapper.ts  (stages 1-2 of the scan pipeline; see "Security mode")
 ├── ui/     App.tsx · Transcript.tsx · MessageView.tsx · ToolCallCard.tsx · InputBox.tsx · StatusBar.tsx
 ├── headless.ts      # readline-driven runner (testing + piping)
 └── util/   errors.ts · tokens.ts · redact.ts
@@ -75,6 +76,14 @@ Compaction vs trimming: `toMessages()` trimming silently drops old messages at s
 No `finish` tool: with native tool calling, `finish_reason: "stop"` ends the turn; the prompt-fallback adapter treats "no tool-call block parsed" as done. Deferred to later versions: `multi_edit`, a real web search tool (needs a search API; `fetch_url` only retrieves known URLs).
 
 Registry pattern: `Tool = { name, description, paramsSchema (JSON Schema), requiresApproval, execute(args, ctx) }`, serialized to the OpenAI `tools` wire format by `tools/registry.ts`.
+
+## Security mode (v2)
+
+Stages 1-2 are shipped (Phase 8); stages 3-5 are specced in the README and PHASES.md.
+
+- `security/knowledge.ts` — the deterministic SSRF catalogs: **sinks** (reqwest free-fn and client methods, hyper, ureq, isahc, surf, `TcpStream::connect`), **sources** (axum/actix extractors, header access, URL-named `String` fields), **sanitizers** (private/loopback/link-local IP checks, host allowlists, scheme restrictions). Noisy method-call patterns are gated on the crate being imported in the file (`requiresUse`).
+- `security/mapper.ts` — `scanRepo(root)`: globs `**/*.rs` (ignoring `target/`), matches catalogs per line with `//` comments stripped (without eating `https://`), and pairs sources with sinks into `Candidate[]`. Pairing heuristic: same-file (every source x sink), plus one-hop cross-file when the source's file calls the sink's enclosing function by name. Each candidate carries the sanitizer hits from its two files (downranking evidence, never auto-clearing) and a slice of enclosing-fn spans (brace-counted, +/-25-line fallback) for the trace stage to read. Zero LLM calls, zero network; output order is deterministic.
+- Fixtures: `tests/fixtures/ssrf-vulnerable/` (direct query→`reqwest::get`, JSON body→`client.post`, and a cross-file handler→`proxy::forward`) and `tests/fixtures/ssrf-safe/` (same shape behind allowlist + scheme + resolved-IP checks).
 
 ## Error handling
 

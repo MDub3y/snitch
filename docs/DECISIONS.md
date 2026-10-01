@@ -2,6 +2,12 @@
 
 > Newest first. Each entry: what was decided, why, and what was rejected.
 
+## 2026-10-01 — The scanner reads files directly instead of going through the agent tools (Phase 8)
+
+**Decided**: `security/mapper.ts` uses `tinyglobby` + `fs` directly rather than calling the `glob`/`grep`/`read_file` tool objects, even though the README describes stages 1-2 as "built on" those tools. Pairing is a deliberately shallow heuristic: same-file source x sink, plus one hop cross-file when the source's file calls the sink's enclosing function by name.
+**Why**: The tools' `execute()` returns strings formatted for a model to read; the scanner needs structured hits (file, line, enclosing fn, spans) and would have to re-parse its own output. The primitives are the same — the "built on" claim holds at the conceptual level. Shallow pairing is acceptable because stage 3 (the trace sub-agent) is the precision filter; stages 1-2 only need recall on realistic shapes, deterministically and for free.
+**Rejected**: Routing through the tool registry (string re-parsing, approval plumbing for a read-only scan); real call-graph analysis via a Rust parser (a heavy dependency against the project's lightweight constraint — revisit if cross-file recall proves too weak on real repos); regex-only "taint tracking" (false precision; reasoning about reachability is exactly what stage 3 is for).
+
 ## 2026-10-01 — Subscription path rides the Agent SDK behind PromptToolAdapter (Phase 7)
 
 **Decided**: `SubscriptionProvider` implements `LLMProvider` by calling the Claude Agent SDK's `query()` with `allowedTools: []` and `maxTurns: 1`, flattening the full history into one prompt per call and reading back assistant text + result usage. It declares `nativeTools: false`, so `createProvider` always wraps it in the existing `PromptToolAdapter` — snitch's own tools drive the loop via fenced JSON, exactly like any other no-native-tools model. The SDK is an optional peer dependency loaded via dynamic import (variable specifier, so tsc doesn't require its types); a missing install produces an actionable error. `ANTHROPIC_API_KEY` is deleted from the env handed to the SDK, since the SDK silently prefers it over the OAuth token and would bill API credits; a startup warning explains when both are set.

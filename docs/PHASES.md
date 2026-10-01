@@ -69,7 +69,7 @@ Fix that came out of live testing: piped/EOF stdin crashed headless approvals (`
     - No key or token ever appears in logs, errors, or traces — redaction tested
     - Agent SDK is an optional dependency: BYOK-only installs work without it
 
-- [ ] **Phase 8 — SSRF knowledge + deterministic Map/Find-sinks stages**
+- [x] **Phase 8 — SSRF knowledge + deterministic Map/Find-sinks stages** (completed 2026-10-01; 136 tests green)
   - Prerequisites: Phase 6 (uses existing `glob`/`grep`/`read_file` tools); independent of Phase 7
   - Scope: `security/` module — sources/sinks/sanitizers catalogs for Rust (reqwest, hyper, ureq, isahc/surf, `TcpStream::connect`; axum/actix extractors, suspicious field names; allowlist / private-IP / scheme checks); repo mapper that pairs sources with reachable sinks into candidate slices. Zero LLM calls in these stages
   - Acceptance:
