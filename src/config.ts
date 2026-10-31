@@ -3,8 +3,19 @@ import path from 'node:path';
 import { SnitchError } from './util/errors.js';
 
 export const DEFAULT_MODEL = 'poolside/laguna-s-2.1:free';
+/** Default when using the user's own Claude subscription (per Anthropic guidance). */
+export const DEFAULT_ANTHROPIC_MODEL = 'claude-opus-5-5';
+
+/**
+ * Which LLM backend to talk to. `anthropic` uses the official SDK, which
+ * resolves the user's Claude credentials itself (ANTHROPIC_API_KEY, or
+ * ANTHROPIC_AUTH_TOKEN, or an `ant auth login` / Claude Code OAuth profile) —
+ * so a subscriber needs no API key. `openrouter` uses the raw-fetch provider.
+ */
+export type ProviderName = 'anthropic' | 'openrouter';
 
 export interface SnitchConfig {
+  provider: ProviderName;
   apiKey: string | undefined;
   model: string;
   baseUrl: string;
@@ -17,10 +28,16 @@ export interface SnitchConfig {
 }
 
 interface ConfigFile {
+  provider?: ProviderName;
   model?: string;
   baseUrl?: string;
   tokenBudget?: number;
   maxIterations?: number;
+}
+
+/** True when the Anthropic SDK would find credentials in the environment. */
+function hasAnthropicEnv(): boolean {
+  return Boolean(process.env['ANTHROPIC_API_KEY'] ?? process.env['ANTHROPIC_AUTH_TOKEN']);
 }
 
 function readConfigFile(cwd: string): ConfigFile {
@@ -33,7 +50,9 @@ function readConfigFile(cwd: string): ConfigFile {
   }
 }
 
-export function loadConfig(overrides: { model?: string; cwd?: string; promptTools?: boolean } = {}): SnitchConfig {
+export function loadConfig(
+  overrides: { provider?: ProviderName; model?: string; cwd?: string; promptTools?: boolean } = {},
+): SnitchConfig {
   const cwd = overrides.cwd ?? process.cwd();
 
   const envFile = path.join(cwd, '.env');
@@ -46,9 +65,19 @@ export function loadConfig(overrides: { model?: string; cwd?: string; promptTool
   }
 
   const file = readConfigFile(cwd);
+  const requestedModel = overrides.model ?? file.model;
+  // Pick the backend: explicit flag/config wins; otherwise infer from the
+  // environment (Anthropic creds present, or a claude-* model was requested).
+  const provider: ProviderName =
+    overrides.provider ??
+    file.provider ??
+    (hasAnthropicEnv() || requestedModel?.startsWith('claude') ? 'anthropic' : 'openrouter');
+  const model = requestedModel ?? (provider === 'anthropic' ? DEFAULT_ANTHROPIC_MODEL : DEFAULT_MODEL);
+
   return {
+    provider,
     apiKey: process.env['SNITCH_API_KEY'] ?? process.env['OPENROUTER_API_KEY'],
-    model: overrides.model ?? file.model ?? DEFAULT_MODEL,
+    model,
     baseUrl: file.baseUrl ?? 'https://openrouter.ai/api/v1',
     tokenBudget: file.tokenBudget ?? 200_000,
     maxIterations: file.maxIterations ?? 24,
@@ -59,7 +88,7 @@ export function loadConfig(overrides: { model?: string; cwd?: string; promptTool
 export function requireApiKey(config: SnitchConfig): string {
   if (!config.apiKey) {
     throw new SnitchError(
-      'No API key found. Set SNITCH_API_KEY or OPENROUTER_API_KEY (environment or .env file) to your OpenRouter key.',
+      'No API key found. Set SNITCH_API_KEY or OPENROUTER_API_KEY (environment or .env file) to your OpenRouter key, or use --provider anthropic to use your Claude subscription.',
     );
   }
   return config.apiKey;
