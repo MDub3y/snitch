@@ -1,9 +1,30 @@
 {
   "name": "snitch",
   "version": "0.1.0",
-  "description": "Snitch — a mini terminal coding agent",
+  "description": "Snitch — a Rust-first offensive-security scanner built on a small terminal agent loop",
   "type": "module",
   "license": "MIT",
+  "author": "md",
+  "homepage": "https://github.com/MDub3y/snitch#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MDub3y/snitch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MDub3y/snitch/issues"
+  },
+  "keywords": [
+    "security",
+    "sast",
+    "rust",
+    "vulnerability-scanner",
+    "offensive-security",
+    "appsec",
+    "sarif",
+    "cli",
+    "agent",
+    "llm"
+  ],
   "bin": {
     "snitch": "dist/index.js"
   },

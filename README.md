@@ -2,7 +2,25 @@
 
 A mini terminal coding agent in TypeScript (name inspired by the Golden Snitch from Harry Potter). You describe a task; Snitch plans, calls tools in a loop — reading and editing files, searching the repo, running shell commands — and reports back, with a human approval gate on anything that mutates your machine.
 
-Lightweight by design (3 runtime dependencies), built in documented phases, and structured so the model, tools, and UI can each evolve independently.
+Built in documented phases and structured so the model, tools, and UI can each evolve independently.
+
+## Security scanning (`snitch scan`)
+
+Snitch is growing into a **Rust-first offensive-security scanner** that works into the development cycle: it reasons about code like an attacker and ranks findings by **what's actually reachable and exploitable**, rather than emitting raw pattern matches. Static analysis only — it reviews code you own and point it at.
+
+```sh
+snitch scan .                         # scan the repo; ranked Markdown report
+snitch scan . --sarif snitch.sarif    # SARIF 2.1.0 for GitHub code-scanning
+snitch scan . --diff origin/main      # PR mode: only changed Rust files
+snitch scan . --fail-on high          # exit non-zero to gate CI
+```
+
+- **Rust-focused taxonomy** — panic→DoS, command/path/SQL injection, SSRF are first-class, with `unsafe`/FFI, deserialization, access-control, crypto-misuse and vulnerable-dependency categories defined.
+- **Exploitability-first ranking** — severity weighted by reachability, attacker control, and confidence, so a reachable remote DoS outranks a theoretical issue in dead code.
+- **Runs on your Claude subscription** — `--provider anthropic` uses the official SDK, which resolves your credentials itself (API key, auth token, or a Claude Code / `ant auth login` OAuth profile). No API key needed if you're signed in. OpenRouter remains the alternative backend.
+- **CI-ready** — SARIF output + exit-code gating. See [docs/CI.md](docs/CI.md).
+
+Full design, Rust threat taxonomy, and the phased roadmap: [docs/SECURITY-PLAN.md](docs/SECURITY-PLAN.md). Contributor handoff: [docs/MISSION-BRIEF.md](docs/MISSION-BRIEF.md).
 
 ## Highlights
 
@@ -74,3 +92,14 @@ Slash commands: `/help`, `/clear` (reset conversation), `/plan` (toggle plan mod
 ## Project status
 
 v1 complete: all 6 development phases are implemented and tested (see [docs/PHASES.md](docs/PHASES.md)). Verified live against `poolside/laguna-s-2.1:free` on 2026-09-03: headless streaming, the tool-calling E2E, and the `--prompt-tools` fallback all pass; free-tier rate limits are absorbed by the retry backoff. The interactive TUI session is the one check that needs a human at a real terminal.
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup and
+ground rules, [SECURITY.md](SECURITY.md) for vulnerability reporting, and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). The roadmap lives in
+[docs/SECURITY-PLAN.md](docs/SECURITY-PLAN.md).
+
+## License
+
+[MIT](LICENSE) © md
