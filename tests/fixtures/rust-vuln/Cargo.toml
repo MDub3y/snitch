@@ -1,0 +1,8 @@
+[package]
+name = "rust-vuln-fixture"
+version = "0.1.0"
+edition = "2021"
+
+# A deliberately vulnerable crate used as a scan fixture. One clear, REACHABLE
+# example per Phase-1 category (panic/DoS + injection). Do not depend on this.
+[dependencies]
